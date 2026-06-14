@@ -235,7 +235,7 @@ interface McpSpecificationBridge {
 class InMemoryMcpBridge : McpSpecificationBridge {
 
     private val _envelopes = MutableSharedFlow<McpEnvelope>(replay = 0, extraBufferCapacity = 64)
-    private var sequenceId: Long = 0L
+    private val sequenceId = java.util.concurrent.atomic.AtomicLong(0L)
     private var currentSession: InMemoryBridgeSession? = null
 
     override fun openSession(): BridgeSession {
@@ -245,7 +245,7 @@ class InMemoryMcpBridge : McpSpecificationBridge {
 
     override suspend fun publish(payload: SpecPayload) {
         if (currentSession?.isOpen != true) return
-        val envelope = payload.toEnvelope(id = ++sequenceId)
+        val envelope = payload.toEnvelope(id = sequenceId.incrementAndGet())
         _envelopes.emit(envelope)
     }
 
