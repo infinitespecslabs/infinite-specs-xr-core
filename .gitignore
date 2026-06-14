@@ -1,0 +1,29 @@
+# ── Build outputs ─────────────────────────────────────────────────────────────
+.gradle/
+build/
+app/build/
+*/build/
+
+# ── Local developer config ─────────────────────────────────────────────────────
+local.properties
+*.keystore
+*.jks
+
+# ── IDE files ──────────────────────────────────────────────────────────────────
+.idea/
+*.iml
+*.iws
+*.ipr
+.DS_Store
+Thumbs.db
+
+# ── Kotlin / Java generated ────────────────────────────────────────────────────
+*.class
+*.jar
+*.aar
+
+# ── Android Studio captures ────────────────────────────────────────────────────
+captures/
+
+# ── Gradle wrapper (keep the jar in source control) ───────────────────────────
+!gradle/wrapper/gradle-wrapper.jar

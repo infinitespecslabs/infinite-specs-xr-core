@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    AndroidManifest.xml — infinite-specs-xr-core (:app)
+
+    Declares the Android XR host activity and the permissions required for
+    eye-tracking (gaze) and microphone (voice transcript) inputs.
+
+    Targets Android XR Developer Preview 4.
+    See: https://developer.android.com/xr
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- ── Perception layer permissions ───────────────────────────────────── -->
+
+    <!-- Gaze / eye-tracking input (Jetpack XR) -->
+    <uses-permission android:name="android.permission.EYE_TRACKING" />
+
+    <!-- Voice transcript input -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Network access for local SSE bridge (loopback only in production) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- ── XR feature declarations ─────────────────────────────────────────── -->
+    <uses-feature
+        android:name="android.hardware.xr.headtracking"
+        android:required="false" />
+
+    <application
+        android:allowBackup="true"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.InfiniteSpecs">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+    </application>
+
+</manifest>

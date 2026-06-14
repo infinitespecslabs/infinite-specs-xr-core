@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    themes.xml — infinite-specs-xr-core (:app)
+
+    Defines the app theme using a platform base theme for broad compatibility.
+    Compose Material3 styling is applied in Kotlin code via MaterialTheme.
+-->
+<resources>
+    <!-- Base theme: platform NoActionBar theme. -->
+    <style name="Theme.InfiniteSpecs" parent="android:Theme.DeviceDefault.NoActionBar">
+        <!-- Spatial panel colours are applied programmatically via Compose;
+             no additional XML overrides are required here. -->
+    </style>
+</resources>

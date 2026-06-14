@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Infinite Specs</string>
+    <string name="panel_title">Infinite Specs</string>
+    <string name="panel_subtitle">Spatial Architecture Monitor</string>
+    <string name="node_label_default">Architecture Node</string>
+    <string name="spec_status_idle">Awaiting spatial intent…</string>
+    <string name="spec_status_processing">Translating spatial intent…</string>
+    <string name="spec_status_streaming">Streaming spec to IDE…</string>
+</resources>
