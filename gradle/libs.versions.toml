@@ -11,7 +11,7 @@ kotlinxCoroutines         = "1.9.0"
 kotlinxSerializationJson  = "1.7.3"
 
 # ── Android build tooling ───────────────────────────────────────────────────
-androidGradlePlugin       = "8.7.3"
+androidGradlePlugin       = "8.9.1"
 compileSdk                = "36"
 minSdk                    = "33"        # Android XR minimum
 targetSdk                 = "36"
@@ -25,8 +25,10 @@ activityCompose           = "1.9.3"
 composeBom                = "2024.12.01"
 
 # ── Jetpack XR SDK (Developer Preview 4) ───────────────────────────────────
-# androidx.xr.* artifacts ship under the same BOM version.
-xrBom                     = "1.0.0-alpha04"
+xrRuntime                 = "1.0.0-alpha14"
+xrScenecore               = "1.0.0-alpha15"
+xrCompose                 = "1.0.0-alpha14"
+xrArcore                  = "1.0.0-alpha14"
 
 # ── Ktor (SSE transport) ────────────────────────────────────────────────────
 ktor                      = "3.0.3"
@@ -58,11 +60,10 @@ androidx-compose-ui-tooling-preview= { group = "androidx.compose.ui",  name = "u
 androidx-compose-material3         = { group = "androidx.compose.material3", name = "material3" }
 
 # ── Jetpack XR SDK (Developer Preview 4) ────────────────────────────────────
-androidx-xr-bom                   = { group = "androidx.xr",           name = "xr-bom",                              version.ref = "xrBom" }
-androidx-xr-compose                = { group = "androidx.xr.compose",  name = "compose" }
-androidx-xr-scenecore              = { group = "androidx.xr.scenecore", name = "scenecore" }
-androidx-xr-runtime                = { group = "androidx.xr.runtime",  name = "runtime" }
-androidx-xr-arcore                 = { group = "androidx.xr.arcore",   name = "arcore" }
+androidx-xr-runtime                = { group = "androidx.xr.runtime",  name = "runtime",                             version.ref = "xrRuntime" }
+androidx-xr-scenecore              = { group = "androidx.xr.scenecore", name = "scenecore",                           version.ref = "xrScenecore" }
+androidx-xr-compose                = { group = "androidx.xr.compose",  name = "compose",                             version.ref = "xrCompose" }
+androidx-xr-arcore                 = { group = "androidx.xr.arcore",   name = "arcore",                              version.ref = "xrArcore" }
 
 # ── Ktor ────────────────────────────────────────────────────────────────────
 ktor-server-core                  = { group = "io.ktor",               name = "ktor-server-core",                    version.ref = "ktor" }

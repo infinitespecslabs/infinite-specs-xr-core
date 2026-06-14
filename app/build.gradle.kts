@@ -70,7 +70,6 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     // ── Jetpack XR SDK (Developer Preview 4) ─────────────────────────────────
-    implementation(platform(libs.androidx.xr.bom))
     implementation(libs.androidx.xr.compose)
     implementation(libs.androidx.xr.scenecore)
     implementation(libs.androidx.xr.runtime)
