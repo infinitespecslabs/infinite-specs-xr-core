@@ -22,57 +22,34 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.infinitespecs.xr.bridge.InMemoryMcpBridge
-import com.infinitespecs.xr.perception.DefaultSpatialIntentParser
-import com.infinitespecs.xr.perception.MockGazeEventSource
-import com.infinitespecs.xr.perception.MockVoiceEventSource
-import com.infinitespecs.xr.perception.RawSpatialEvent
+import androidx.lifecycle.lifecycleScope
+import com.infinitespecs.xr.bridge.McpSpecificationBridge
+import com.infinitespecs.xr.perception.SpatialIntentParser
 import com.infinitespecs.xr.ui.InfiniteSpecsHudPanel
 import com.infinitespecs.xr.ui.NodeCardState
 import com.infinitespecs.xr.ui.PanelStatus
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 
 /**
  * Root activity for the Infinite Specs XR application.
  *
- * ## XR Integration (Developer Preview 4)
- *
- * In a full XR session the [InfiniteSpecsHudPanel] composable would be hosted
- * inside a `Subspace { SpatialPanel { … } }` block provided by
- * `androidx.xr.compose`. The spatial panel floats in the developer's field of
- * view at ~80 cm depth.
- *
- * For non-XR environments (standard emulator / 2-D phone) the panel is
- * rendered as a standard Compose surface, which is the default behaviour here.
+ * Simulates a closed-loop system where physical observer telemetry (voice & gaze)
+ * resolves to an architectural intent, gets published over MCP, and streams back
+ * to update the display panel states.
  */
 class MainActivity : ComponentActivity() {
 
     // ── Pipeline components ──────────────────────────────────────────────────
 
-    private val parser = DefaultSpatialIntentParser()
-    private val bridge = InMemoryMcpBridge()
-
-    // ── Mock sensor sources (replace with real XR runtime sources on device) ─
-
-    private val mockGazeSource = MockGazeEventSource(
-        listOf(
-            RawSpatialEvent.GazeEvent(nodeId = "api-gateway",  dwellMs = 1_200L),
-            RawSpatialEvent.GazeEvent(nodeId = "auth-service", dwellMs = 900L),
-            RawSpatialEvent.GazeEvent(nodeId = "data-store",   dwellMs = 2_000L),
-        ),
-    )
-
-    private val mockVoiceSource = MockVoiceEventSource(
-        listOf(
-            RawSpatialEvent.VoiceEvent(token = "define",  confidence = 0.92f),
-            RawSpatialEvent.VoiceEvent(token = "connect", confidence = 0.85f),
-        ),
-    )
+    private val parser = SpatialIntentParser()
+    private val bridge = McpSpecificationBridge()
 
     // ── UI state ─────────────────────────────────────────────────────────────
 
@@ -83,7 +60,44 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // TODO: Open and retain a BridgeSession when wiring the bridge to an active spec stream.
+        // Wire up the bridge output stream to update the UI State
+        bridge.outboundSpecificationStream
+            .onEach { payloadJson ->
+                // Transition UI to STREAMING when a payload is active
+                _panelStatus.value = PanelStatus.STREAMING
+                
+                // Map the parsed intent details to a NodeCardState displayed in the HUD
+                val intent = parser.parseTokensToSchemaConstraint(
+                    voiceTranscript = "Declare an asynchronous consumer tracking the stage rig left",
+                    gazeVector = floatArrayOf(0.12f, 0.85f, -0.44f)
+                )
+                
+                _nodes.value = listOf(
+                    NodeCardState(
+                        nodeId = "event-bridge",
+                        label = intent.nodeType,
+                        nodeType = intent.nodeType,
+                        physicalAnchorId = intent.physicalAnchorId,
+                        semanticConstraints = intent.semanticConstraints,
+                        loopEngineeringSkillTemplate = intent.loopEngineeringSkillTemplate,
+                        isActive = true
+                    )
+                )
+            }
+            .launchIn(lifecycleScope)
+
+        // Simulate a physical telemetry trigger
+        lifecycleScope.launch {
+            _panelStatus.value = PanelStatus.PROCESSING
+            delay(1500L) // Simulate some telemetry processing latency
+            
+            val intent = parser.parseTokensToSchemaConstraint(
+                voiceTranscript = "Declare an asynchronous consumer tracking the stage rig left",
+                gazeVector = floatArrayOf(0.12f, 0.85f, -0.44f)
+            )
+            
+            bridge.streamIntentToAutonomousAgentWorktree(intent)
+        }
 
         setContent {
             MaterialTheme {
@@ -102,10 +116,5 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        bridge.openSession().close()
     }
 }

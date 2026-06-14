@@ -17,7 +17,7 @@
  * │  │──────────────────────────────────────────────│                       │
  * │  │  ┌────────────┐  ┌────────────┐              │                       │
  * │  │  │ api-gateway│  │  auth-svc  │   ...        │   ← NodeCards        │
- * │  │  │ INSPECT 92%│  │ SPECIFY 88%│              │                       │
+ * │  │  │ AsyncBridge│  │ KafkaCons  │              │                       │
  * │  │  └────────────┘  └────────────┘              │                       │
  * │  │──────────────────────────────────────────────│                       │
  * │  │  ▶ Streaming spec to IDE…                    │   ← Status bar       │
@@ -56,7 +56,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.infinitespecs.xr.perception.IntentType
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Data models for the UI layer
@@ -66,18 +65,22 @@ import com.infinitespecs.xr.perception.IntentType
  * Immutable view-model snapshot representing a single architecture node card
  * rendered inside the spatial heads-up display.
  *
- * @param nodeId          Stable node identifier (e.g., "api-gateway").
- * @param label           Human-readable display label.
- * @param intentType      Most recently resolved [IntentType] for this node.
- * @param confidencePct   Confidence expressed as an integer percentage [0, 100].
- * @param isActive        Whether this node is currently under gaze focus.
+ * @param nodeId                       Stable node identifier (e.g., "api-gateway").
+ * @param label                        Human-readable display label.
+ * @param nodeType                     The node classifier (e.g. "AsynchronousEventBridge").
+ * @param physicalAnchorId             Target real-world object vector link identifier.
+ * @param semanticConstraints          List of system invariants parsed from user context.
+ * @param loopEngineeringSkillTemplate Target background sub-agent execution flow.
+ * @param isActive                     Whether this node is currently under gaze focus.
  */
 @Stable
 data class NodeCardState(
     val nodeId: String,
     val label: String,
-    val intentType: IntentType = IntentType.UNKNOWN,
-    val confidencePct: Int = 0,
+    val nodeType: String = "",
+    val physicalAnchorId: String = "",
+    val semanticConstraints: List<String> = emptyList(),
+    val loopEngineeringSkillTemplate: String = "",
     val isActive: Boolean = false,
 )
 
@@ -97,32 +100,8 @@ enum class PanelStatus {
 /**
  * Root spatial composable for the Infinite Specs heads-up display.
  *
- * ## Android XR Integration (Developer Preview 4)
- *
- * In a real XR session this composable would be wrapped inside a
- * `androidx.xr.compose.SubspaceComposable` and hosted by a `SpatialPanel`
- * to float in the developer's field of view above the physical environment.
- *
- * ```kotlin
- * // In an XR-capable Activity / Fragment:
- * Subspace {
- *     SpatialPanel(
- *         modifier = SubspaceModifier
- *             .width(600.dp)
- *             .height(300.dp)
- *             .offset(x = 0.dp, y = 0.dp, z = -0.8f),  // 80 cm in front
- *     ) {
- *         InfiniteSpecsHudPanel(nodes = nodes, status = status)
- *     }
- * }
- * ```
- *
  * On standard Android (no XR runtime) the composable renders as a regular
  * on-screen card — suitable for Compose Preview and JVM screenshot tests.
- *
- * @param nodes   Ordered list of [NodeCardState] items to display.
- * @param status  Current [PanelStatus] shown in the header and status bar.
- * @param modifier Optional [Modifier] for size / positioning from the parent.
  */
 @Composable
 fun InfiniteSpecsHudPanel(
@@ -168,7 +147,7 @@ private fun HudPanelHeader(status: PanelStatus) {
                 color = HudColors.TextPrimary,
             )
             Text(
-                text = "Spatial Architecture Monitor",
+                text = "Loop Engineering research sandbox",
                 fontFamily = FontFamily.Monospace,
                 fontSize = 11.sp,
                 color = HudColors.TextSecondary,
@@ -241,10 +220,7 @@ private fun NodeCardRow(nodes: List<NodeCardState>) {
 /**
  * Individual architecture node card.
  *
- * Displays the node label, resolved [IntentType], and confidence percentage.
- * Active (gaze-focused) nodes are highlighted with an accent border.
- *
- * @param state Current [NodeCardState] snapshot for this node.
+ * Displays the node label, resolved node type, target skill template, and anchor ID.
  */
 @Composable
 fun NodeCard(
@@ -257,7 +233,7 @@ fun NodeCard(
 
     Box(
         modifier = modifier
-            .width(120.dp)
+            .width(160.dp)
             .background(color = cardBackground, shape = RoundedCornerShape(8.dp))
             .border(width = 1.5.dp, color = borderColor, shape = RoundedCornerShape(8.dp))
             .padding(10.dp),
@@ -273,18 +249,37 @@ fun NodeCard(
                 overflow = TextOverflow.Ellipsis,
             )
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = state.intentType.name,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 10.sp,
-                color = intentTypeColor(state.intentType),
-            )
-            Text(
-                text = "${state.confidencePct}%",
-                fontFamily = FontFamily.Monospace,
-                fontSize = 10.sp,
-                color = HudColors.TextSecondary,
-            )
+            if (state.nodeType.isNotEmpty()) {
+                Text(
+                    text = state.nodeType,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 10.sp,
+                    color = nodeTypeColor(state.nodeType),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (state.physicalAnchorId.isNotEmpty()) {
+                Text(
+                    text = "@ ${state.physicalAnchorId}",
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 9.sp,
+                    color = HudColors.TextSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (state.loopEngineeringSkillTemplate.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Skill: ${state.loopEngineeringSkillTemplate}",
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 8.sp,
+                    color = HudColors.TextSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
@@ -297,9 +292,9 @@ fun NodeCard(
 @Composable
 private fun HudStatusBar(status: PanelStatus) {
     val statusText = when (status) {
-        PanelStatus.IDLE        -> "Awaiting spatial intent…"
-        PanelStatus.PROCESSING  -> "Translating spatial intent…"
-        PanelStatus.STREAMING   -> "▶ Streaming spec to IDE…"
+        PanelStatus.IDLE        -> "Awaiting spatial telemetry..."
+        PanelStatus.PROCESSING  -> "Folding telemetry into MCP schema..."
+        PanelStatus.STREAMING   -> "▶ Streaming specs to autonomous IDE loops..."
     }
     val statusColor = when (status) {
         PanelStatus.STREAMING   -> HudColors.AccentGreen
@@ -328,13 +323,6 @@ private fun HudStatusBar(status: PanelStatus) {
 // Colour palette (dark HUD theme)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * HUD colour tokens.
- *
- * Designed for maximum legibility on see-through ambient XR glass displays
- * with high ambient light conditions. All colours are intentionally high-
- * contrast against both dark and light physical backgrounds.
- */
 private object HudColors {
     val PanelBackground      = Color(0xCC0D1117)  // near-black, 80% opacity
     val CardBackground       = Color(0xFF161B22)
@@ -349,14 +337,13 @@ private object HudColors {
 }
 
 /**
- * Returns a colour appropriate for the given [IntentType] badge.
+ * Returns a color appropriate for the given nodeType.
  */
-private fun intentTypeColor(intentType: IntentType): Color = when (intentType) {
-    IntentType.INSPECT  -> Color(0xFF58A6FF)  // blue
-    IntentType.SPECIFY  -> Color(0xFF3FB950)  // green
-    IntentType.EXPAND   -> Color(0xFFD29922)  // amber
-    IntentType.CONNECT  -> Color(0xFFBC8CFF)  // purple
-    IntentType.UNKNOWN  -> Color(0xFF8B949E)  // muted grey
+private fun nodeTypeColor(nodeType: String): Color = when (nodeType) {
+    "AsynchronousEventBridge" -> Color(0xFFBC8CFF)  // purple
+    "KafkaConsumer"           -> Color(0xFF58A6FF)  // blue
+    "DMXLightingController"   -> Color(0xFF3FB950)  // green
+    else                      -> Color(0xFFD29922)  // amber
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -369,10 +356,23 @@ private fun PreviewHudPanelStreaming() {
     MaterialTheme {
         InfiniteSpecsHudPanel(
             nodes = listOf(
-                NodeCardState("api-gateway",  "api-gateway",   IntentType.SPECIFY,  92, isActive = true),
-                NodeCardState("auth-service", "auth-service",  IntentType.INSPECT,  88),
-                NodeCardState("data-store",   "data-store",    IntentType.CONNECT,  75),
-                NodeCardState("event-bus",    "event-bus",     IntentType.EXPAND,   61),
+                NodeCardState(
+                    nodeId = "api-gateway",
+                    label = "api-gateway",
+                    nodeType = "AsynchronousEventBridge",
+                    physicalAnchorId = "anchor_stage_rig_left_04",
+                    semanticConstraints = listOf("Must process incoming DMX tokens below 11ms latency"),
+                    loopEngineeringSkillTemplate = "autonomous-service-generator-v1",
+                    isActive = true
+                ),
+                NodeCardState(
+                    nodeId = "auth-service",
+                    label = "auth-service",
+                    nodeType = "KafkaConsumer",
+                    physicalAnchorId = "anchor_auth_01",
+                    semanticConstraints = emptyList(),
+                    loopEngineeringSkillTemplate = "auth-agent-v2"
+                )
             ),
             status = PanelStatus.STREAMING,
         )
