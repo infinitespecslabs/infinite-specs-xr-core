@@ -83,7 +83,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        bridge.openSession()
+        // TODO: Open and retain a BridgeSession when wiring the bridge to an active spec stream.
 
         setContent {
             MaterialTheme {
