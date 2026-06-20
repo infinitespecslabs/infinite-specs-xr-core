@@ -16,6 +16,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.unit.dp
@@ -28,6 +29,7 @@ import androidx.xr.compose.subspace.layout.SubspaceModifier
 import androidx.xr.compose.subspace.layout.height
 import androidx.xr.compose.subspace.layout.transformingMovable
 import androidx.xr.compose.subspace.layout.width
+import androidx.xr.runtime.DeviceTrackingMode
 import androidx.xr.runtime.Session
 import androidx.xr.runtime.math.Ray
 import androidx.xr.runtime.math.Vector3
@@ -71,7 +73,15 @@ class MainActivity : ComponentActivity() {
      */
     private fun triggerPerceptionPipeline() {
         val currentSession = session ?: return
-        val arDevice = ArDevice.getInstance(currentSession)
+
+        // Ensure tracking is active before proceeding
+        val arDevice = try {
+            ArDevice.getInstance(currentSession)
+        } catch (_: IllegalStateException) {
+            _logs.value = (_logs.value + "Error: Tracking not active").takeLast(5)
+            return
+        }
+
         val headPose = arDevice.state.value.devicePose
         val gazeRay = Ray(headPose.translation, headPose.forward)
 
@@ -136,6 +146,13 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             session = LocalSession.current
+            LaunchedEffect(session) {
+                session?.let { s ->
+                    val newConfig = s.config.copy(deviceTracking = DeviceTrackingMode.SPATIAL_LAST_KNOWN)
+                    s.configure(newConfig)
+                }
+            }
+
             MaterialTheme {
                 Subspace {
                     SpatialPanel(
