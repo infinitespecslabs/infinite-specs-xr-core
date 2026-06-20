@@ -73,6 +73,7 @@ dependencies {
     implementation(libs.androidx.xr.compose)
     implementation(libs.androidx.xr.scenecore)
     implementation(libs.androidx.xr.runtime)
+    implementation(libs.androidx.xr.arcore)
 
     // ── Ktor SSE bridge ──────────────────────────────────────────────────────
     implementation(libs.ktor.server.core)

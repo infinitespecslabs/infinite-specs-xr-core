@@ -22,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import androidx.xr.arcore.ArDevice
+import androidx.xr.arcore.hitTest
 import androidx.xr.compose.platform.LocalSession
 import androidx.xr.compose.spatial.Subspace
 import androidx.xr.compose.subspace.SpatialPanel
@@ -30,6 +31,7 @@ import androidx.xr.compose.subspace.layout.height
 import androidx.xr.compose.subspace.layout.transformingMovable
 import androidx.xr.compose.subspace.layout.width
 import androidx.xr.runtime.DeviceTrackingMode
+import androidx.xr.runtime.PlaneTrackingMode
 import androidx.xr.runtime.Session
 import androidx.xr.runtime.math.Ray
 import androidx.xr.runtime.math.Vector3
@@ -85,6 +87,15 @@ class MainActivity : ComponentActivity() {
         val headPose = arDevice.state.value.devicePose
         val gazeRay = Ray(headPose.translation, headPose.forward)
 
+        // Perform a spatial hit-test against the environment
+        val hitResults = hitTest(currentSession, gazeRay)
+        val primaryHit = hitResults.firstOrNull()
+        val physicalAnchorId = primaryHit?.let { "anchor_${it.trackable.hashCode()}" } ?: "floating_context"
+
+        if (primaryHit != null) {
+            _logs.value = (_logs.value + "Hit detected: ${primaryHit.distance.format(2)}m").takeLast(5)
+        }
+
         lifecycleScope.launch {
             _panelStatus.value = PanelStatus.PROCESSING
             delay(1500.milliseconds) // Simulate some telemetry processing latency
@@ -92,11 +103,13 @@ class MainActivity : ComponentActivity() {
             val intent = parser.parseTokensToSchemaConstraint(
                 voiceTranscript = "Declare an asynchronous consumer tracking the stage rig left",
                 gazeRay = gazeRay,
-            )
+            ).copy(physicalAnchorId = physicalAnchorId)
 
             bridge.streamIntentToAutonomousAgentWorktree(intent)
         }
     }
+
+    private fun Float.format(digits: Int) = "%.${digits}f".format(this)
 
     override fun onDestroy() {
         super.onDestroy()
@@ -148,7 +161,10 @@ class MainActivity : ComponentActivity() {
             session = LocalSession.current
             LaunchedEffect(session) {
                 session?.let { s ->
-                    val newConfig = s.config.copy(deviceTracking = DeviceTrackingMode.SPATIAL_LAST_KNOWN)
+                    val newConfig = s.config.copy(
+                        deviceTracking = DeviceTrackingMode.SPATIAL_LAST_KNOWN,
+                        planeTracking = PlaneTrackingMode.HORIZONTAL_AND_VERTICAL,
+                    )
                     s.configure(newConfig)
                 }
             }

@@ -18,6 +18,9 @@
     <!-- Voice transcript input -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
+    <!-- Scene Understanding for Plane Detection (Jetpack XR) -->
+    <uses-permission android:name="android.permission.SCENE_UNDERSTANDING_COARSE" />
+
     <!-- Network access for local SSE bridge (loopback only in production) -->
     <uses-permission android:name="android.permission.INTERNET" />
 
