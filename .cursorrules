@@ -22,6 +22,7 @@
 - `SpatialIntentParser`: Logic for mapping telemetry to architectural intent.
 - `McpSpecificationBridge`: SSE transport for streaming MCP payloads.
 - `StrangeLoopTest`: Primary integration test for the closed-loop system.
+- **Reference**: Follow the progression defined in `ROADMAP.md`.
 
 ## Version Control
 - Use Conventional Commits.
