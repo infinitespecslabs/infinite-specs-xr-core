@@ -20,12 +20,17 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
+import androidx.xr.arcore.ArDevice
+import androidx.xr.compose.platform.LocalSession
 import androidx.xr.compose.spatial.Subspace
 import androidx.xr.compose.subspace.SpatialPanel
 import androidx.xr.compose.subspace.layout.SubspaceModifier
 import androidx.xr.compose.subspace.layout.height
 import androidx.xr.compose.subspace.layout.transformingMovable
 import androidx.xr.compose.subspace.layout.width
+import androidx.xr.runtime.Session
+import androidx.xr.runtime.math.Ray
+import androidx.xr.runtime.math.Vector3
 import com.infinitespecs.xr.bridge.McpSpecificationBridge
 import com.infinitespecs.xr.perception.SpatialIntentParser
 import com.infinitespecs.xr.ui.InfiniteSpecsHudPanel
@@ -58,18 +63,25 @@ class MainActivity : ComponentActivity() {
     private val _nodes = MutableStateFlow<List<NodeCardState>>(emptyList())
     private val _logs = MutableStateFlow<List<String>>(emptyList())
 
+    private var session: Session? = null
+
     /**
      * Triggers the mock perception pipeline.
      * Maps physical telemetry to architectural intent and streams it over MCP.
      */
     private fun triggerPerceptionPipeline() {
+        val currentSession = session ?: return
+        val arDevice = ArDevice.getInstance(currentSession)
+        val headPose = arDevice.state.value.devicePose
+        val gazeRay = Ray(headPose.translation, headPose.forward)
+
         lifecycleScope.launch {
             _panelStatus.value = PanelStatus.PROCESSING
             delay(1500.milliseconds) // Simulate some telemetry processing latency
 
             val intent = parser.parseTokensToSchemaConstraint(
                 voiceTranscript = "Declare an asynchronous consumer tracking the stage rig left",
-                gazeVector = floatArrayOf(0.12f, 0.85f, -0.44f),
+                gazeRay = gazeRay,
             )
 
             bridge.streamIntentToAutonomousAgentWorktree(intent)
@@ -94,10 +106,11 @@ class MainActivity : ComponentActivity() {
                 // Transition UI to STREAMING when a payload is active
                 _panelStatus.value = PanelStatus.STREAMING
 
-                // Map the parsed intent details to a NodeCardState displayed in the HUD
+                // Note: In a real app, we would parse the payload back into an Intent
+                // For this prototype, we just refresh the UI with a consistent state
                 val intent = parser.parseTokensToSchemaConstraint(
                     voiceTranscript = "Declare an asynchronous consumer tracking the stage rig left",
-                    gazeVector = floatArrayOf(0.12f, 0.85f, -0.44f),
+                    gazeRay = Ray(Vector3.Zero, Vector3(0f, 0f, -1f)),
                 )
 
                 _nodes.value = listOf(
@@ -122,6 +135,7 @@ class MainActivity : ComponentActivity() {
             .launchIn(lifecycleScope)
 
         setContent {
+            session = LocalSession.current
             MaterialTheme {
                 Subspace {
                     SpatialPanel(
@@ -137,8 +151,7 @@ class MainActivity : ComponentActivity() {
                             nodes = nodes,
                             status = status,
                             logs = logs,
-                            onTrigger = { triggerPerceptionPipeline() },
-                        )
+                        ) { triggerPerceptionPipeline() }
                     }
                 }
             }

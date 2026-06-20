@@ -1,5 +1,7 @@
 package com.infinitespecs.xr
 
+import androidx.xr.runtime.math.Ray
+import androidx.xr.runtime.math.Vector3
 import com.infinitespecs.xr.perception.SpatialIntentParser
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -17,7 +19,7 @@ class StrangeLoopTest {
         val parser = SpatialIntentParser()
 
         val mockTranscript = "Declare an asynchronous consumer tracking the stage rig left"
-        val mockGaze = floatArrayOf(0.12f, 0.85f, -0.44f)
+        val mockGaze = Ray(Vector3.Zero, Vector3(0f, 0f, -1f))
 
         val generatedIntent = parser.parseTokensToSchemaConstraint(mockTranscript, mockGaze)
 

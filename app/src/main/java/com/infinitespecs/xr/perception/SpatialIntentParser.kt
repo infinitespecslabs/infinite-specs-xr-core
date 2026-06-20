@@ -1,5 +1,6 @@
 package com.infinitespecs.xr.perception
 
+import androidx.xr.runtime.math.Ray
 import kotlinx.serialization.Serializable
 
 /**
@@ -9,17 +10,38 @@ import kotlinx.serialization.Serializable
 class SpatialIntentParser {
 
     @Serializable
+    data class GazeRay(
+        val originX: Float,
+        val originY: Float,
+        val originZ: Float,
+        val directionX: Float,
+        val directionY: Float,
+        val directionZ: Float,
+    )
+
+    @Serializable
     data class ArchitecturalIntent(
         val nodeType: String, // e.g., "KafkaConsumer", "DMXLightingController"
         val physicalAnchorId: String, // Vector tracking link to a real-world object
         val semanticConstraints: List<String>, // List of system invariants spoken aloud
         val loopEngineeringSkillTemplate: String, // Flags the target sub-agent pipeline
+        val spatialContext: GazeRay? = null,
     )
 
     fun parseTokensToSchemaConstraint(
         voiceTranscript: String,
-        gazeVector: FloatArray,
+        gazeRay: Ray,
     ): ArchitecturalIntent {
+        // Map the Ray into a serializable context
+        val serializableGaze = GazeRay(
+            originX = gazeRay.origin.x,
+            originY = gazeRay.origin.y,
+            originZ = gazeRay.origin.z,
+            directionX = gazeRay.direction.x,
+            directionY = gazeRay.direction.y,
+            directionZ = gazeRay.direction.z,
+        )
+
         // Mock processing mapping physical environment geometry to an invariant prompt payload
         return ArchitecturalIntent(
             nodeType = "AsynchronousEventBridge",
@@ -29,6 +51,7 @@ class SpatialIntentParser {
                 "Must emit state updates via Server-Sent Events over MCP",
             ),
             loopEngineeringSkillTemplate = "autonomous-service-generator-v1",
+            spatialContext = serializableGaze,
         )
     }
 }

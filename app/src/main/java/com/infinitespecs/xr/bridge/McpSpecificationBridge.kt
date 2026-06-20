@@ -82,6 +82,7 @@ class McpSpecificationBridge {
      */
     suspend fun streamIntentToAutonomousAgentWorktree(intent: ArchitecturalIntent) {
         val rulesJson = Json.encodeToString(intent.semanticConstraints)
+        val spatialContextJson = Json.encodeToString(intent.spatialContext)
         val formattedMcpPayload = """
             {
               "mcp_protocol_version": "2026-06-01",
@@ -90,7 +91,8 @@ class McpSpecificationBridge {
               "loop_constraints": {
                  "rules": $rulesJson,
                  "target_skill": "${intent.loopEngineeringSkillTemplate}"
-              }
+              },
+              "real_world_telemetry": $spatialContextJson
             }
         """.trimIndent()
 

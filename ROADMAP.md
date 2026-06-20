@@ -7,7 +7,7 @@ This document outlines the transition from the current "Strange Loop" prototype 
 ## Phase 1: Real-World Perception (The Sensors)
 **Goal**: Replace mock telemetry with active hardware sensor data.
 - [ ] **Voice Integration**: Implement on-device Speech-to-Text (STT) using Android `SpeechRecognizer` or Gemini Nano.
-- [ ] **Spatial Gaze Mapping**: Access the `androidx.xr.scenecore.Session` to retrieve real-time gaze rays.
+- [x] **Spatial Gaze Mapping**: Access the `androidx.xr.scenecore.Session` to retrieve real-time gaze rays.
 - [ ] **Physical Anchoring**: Use ARCore Plane Detection to pin architecture nodes to real-world surfaces (`AnchorEntity`).
 - [ ] **Object Recognition**: (Long term) Use the camera feed to identify physical hardware (servers, rigs) as gaze targets.
 
