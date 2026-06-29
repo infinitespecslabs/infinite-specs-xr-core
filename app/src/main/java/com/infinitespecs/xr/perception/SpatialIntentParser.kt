@@ -86,6 +86,7 @@ class SpatialIntentParser {
         return try {
             val response = generativeModel.generateContent(prompt)
             val responseText = response.text ?: throw IllegalStateException("Empty response from Gemini")
+            Log.d("SpatialIntentParser", "Raw Gemini JSON: $responseText")
             
             // Parse response as a generic JsonElement to inspect and adapt semanticConstraints robustly
             val jsonElement = json.parseToJsonElement(responseText)
