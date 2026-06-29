@@ -21,6 +21,7 @@ Thumbs.db
 *.class
 *.jar
 *.aar
+.kotlin/
 
 # ── Android Studio captures ────────────────────────────────────────────────────
 captures/
