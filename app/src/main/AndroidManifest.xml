@@ -13,7 +13,10 @@
     <!-- ── Perception layer permissions ───────────────────────────────────── -->
 
     <!-- Gaze / eye-tracking input (Jetpack XR) -->
-    <uses-permission android:name="android.permission.EYE_TRACKING" />
+    <uses-permission android:name="android.permission.EYE_TRACKING_FINE" />
+
+    <!-- Hand tracking (Jetpack XR) -->
+    <uses-permission android:name="android.permission.HAND_TRACKING" />
 
     <!-- Camera access for AR tracking -->
     <uses-permission android:name="android.permission.CAMERA" />
@@ -23,6 +26,7 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <!-- Scene Understanding for Plane Detection (Jetpack XR) -->
+    <uses-permission android:name="android.permission.SCENE_UNDERSTANDING" />
     <uses-permission android:name="android.permission.SCENE_UNDERSTANDING_COARSE" />
 
     <!-- Network access for local SSE bridge (loopback only in production) -->

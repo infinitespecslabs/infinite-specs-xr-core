@@ -58,8 +58,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.xr.compose.spatial.Orbiter
-import androidx.xr.compose.spatial.OrbiterAnchorPoint
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Data models for the UI layer
@@ -133,23 +131,20 @@ fun InfiniteSpecsHudPanel(
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 HudStatusBar(status = status)
-            }
-        }
-
-        Orbiter(
-            anchorPoint = OrbiterAnchorPoint.Bottom,
-        ) {
-            Button(
-                onClick = onTrigger,
-                colors = ButtonDefaults.buttonColors(containerColor = HudColors.AccentBlue),
-                enabled = status == PanelStatus.IDLE,
-            ) {
-                Text(
-                    text = "Engage Perception Pipeline",
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 12.sp,
-                    color = Color.White,
-                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(
+                    onClick = onTrigger,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = HudColors.AccentBlue),
+                    enabled = status == PanelStatus.IDLE,
+                ) {
+                    Text(
+                        text = "Engage Perception Pipeline",
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 12.sp,
+                        color = Color.White,
+                    )
+                }
             }
         }
     }

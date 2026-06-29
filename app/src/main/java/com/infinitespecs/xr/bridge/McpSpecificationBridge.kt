@@ -1,18 +1,20 @@
 package com.infinitespecs.xr.bridge
 
 import com.infinitespecs.xr.perception.SpatialIntentParser.ArchitecturalIntent
+import io.ktor.http.ContentType
 import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.call
 import io.ktor.server.application.install
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.request.receiveText
+import io.ktor.server.response.respondBytesWriter
 import io.ktor.server.response.respondText
+import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
-import io.ktor.server.sse.SSE
-import io.ktor.server.sse.sse
-import io.ktor.sse.ServerSentEvent
+import io.ktor.utils.io.writeStringUtf8
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -21,8 +23,8 @@ import kotlinx.serialization.json.Json
 
 /**
  * Acts as an internal Model Context Protocol (MCP) daemon interface.
- * Hosts a Ktor SSE server to stream structured JSON schema constraints to
- * localized autonomous agent loops (IDE plugins, CLI agents).
+ * Hosts a Ktor server with a manual SSE implementation to stream structured JSON
+ * schema constraints to localized autonomous agent loops (IDE plugins, CLI agents).
  */
 class McpSpecificationBridge {
 
@@ -42,15 +44,22 @@ class McpSpecificationBridge {
     val inboundLogStream: Flow<String> = _inboundLogStream
 
     private val server = embeddedServer(CIO, port = 8080) {
-        install(SSE)
         install(ContentNegotiation) {
             json()
         }
         routing {
-            sse("/mcp/sse") {
-                // When a client connects, start collecting from our outbound flow
-                _outboundSpecificationStream.collectLatest { payload ->
-                    send(ServerSentEvent(data = payload, event = "specification"))
+            get("/mcp/sse") {
+                call.respondBytesWriter(contentType = ContentType.Text.EventStream) {
+                    // Send connection header
+                    writeStringUtf8("event: connected\ndata: MCP Specification Daemon Active\n\n")
+                    flush()
+
+                    // Stream specifications to the connected client
+                    _outboundSpecificationStream.collectLatest { payload ->
+                        writeStringUtf8("event: specification\n")
+                        writeStringUtf8("data: $payload\n\n")
+                        flush()
+                    }
                 }
             }
 

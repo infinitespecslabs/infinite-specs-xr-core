@@ -91,7 +91,6 @@ dependencies {
     // ── Ktor SSE bridge ──────────────────────────────────────────────────────
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)
-    implementation(libs.ktor.server.sse)
     implementation(libs.ktor.contentnegotiation)
     implementation(libs.ktor.serialization.json)
 

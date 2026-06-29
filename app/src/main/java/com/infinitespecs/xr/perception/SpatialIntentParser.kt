@@ -2,9 +2,9 @@ package com.infinitespecs.xr.perception
 
 import android.util.Log
 import androidx.xr.runtime.math.Ray
-import com.infinitespecs.xr.BuildConfig
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.generationConfig
+import com.infinitespecs.xr.BuildConfig
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -17,7 +17,7 @@ import kotlinx.serialization.json.Json
 class SpatialIntentParser {
 
     private val generativeModel = GenerativeModel(
-        modelName = "gemini-1.5-flash",
+        modelName = "gemini-2.5-flash",
         apiKey = BuildConfig.GOOGLE_AI_API_KEY,
         generationConfig = generationConfig {
             responseMimeType = "application/json"

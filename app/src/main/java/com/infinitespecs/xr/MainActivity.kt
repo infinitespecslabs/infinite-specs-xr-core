@@ -13,6 +13,7 @@ package com.infinitespecs.xr
 
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -72,30 +73,43 @@ class MainActivity : ComponentActivity() {
 
     private var session: Session? = null
 
-    private val planePermission = "android.permission.SCENE_UNDERSTANDING_COARSE"
+    private val planePermission = "android.permission.SCENE_UNDERSTANDING"
+    private val planeCoarsePermission = "android.permission.SCENE_UNDERSTANDING_COARSE"
     private val cameraPermission = "android.permission.CAMERA"
+    private val eyePermission = "android.permission.EYE_TRACKING_FINE"
+    private val handPermission = "android.permission.HAND_TRACKING"
+    private val audioPermission = "android.permission.RECORD_AUDIO"
 
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
-            val planeGranted = permissions[planePermission] ?: false
+            val planeGranted = permissions[planePermission] ?: permissions[planeCoarsePermission] ?: false
             val cameraGranted = permissions[cameraPermission] ?: false
-            
+            val eyeGranted = permissions[eyePermission] ?: false
+            val handGranted = permissions[handPermission] ?: false
+            val audioGranted = permissions[audioPermission] ?: false
+
             if (planeGranted) {
                 _logs.value = (_logs.value + "Permission granted: Plane tracking active").takeLast(5)
             }
             if (cameraGranted) {
                 _logs.value = (_logs.value + "Permission granted: Camera tracking active").takeLast(5)
             }
-            
+            if (eyeGranted) {
+                _logs.value = (_logs.value + "Permission granted: Eye tracking active").takeLast(5)
+            }
+            if (handGranted) {
+                _logs.value = (_logs.value + "Permission granted: Hand tracking active").takeLast(5)
+            }
+            if (audioGranted) {
+                _logs.value = (_logs.value + "Permission granted: Audio recording active").takeLast(5)
+            }
+
             configureSession(enablePlanes = planeGranted)
         }
 
-    /**
-     * Configures the XR session with the desired tracking modes.
-     */
     private fun configureSession(enablePlanes: Boolean = true) {
         val s = session ?: return
-        
+
         val newConfig = s.config.copy(
             deviceTracking = DeviceTrackingMode.SPATIAL_LAST_KNOWN,
             planeTracking = if (enablePlanes) {
@@ -105,14 +119,18 @@ class MainActivity : ComponentActivity() {
             },
         )
 
-        try {
-            s.configure(newConfig)
-        } catch (_: SecurityException) {
-            _logs.value = (_logs.value + "Security Error: Missing permissions").takeLast(5)
-            // Fallback to basic tracking if planes fail
-            if (enablePlanes) configureSession(enablePlanes = false)
-        } catch (e: Exception) {
-            _logs.value = (_logs.value + "Error configuring session: ${e.message}").takeLast(5)
+        lifecycleScope.launch {
+            try {
+                s.configure(newConfig)
+            } catch (e: SecurityException) {
+                Log.e("MainActivity", "Security Exception during session configuration", e)
+                _logs.value = (_logs.value + "Security Error: Missing permissions").takeLast(5)
+                // Fallback to basic tracking if planes fail
+                if (enablePlanes) configureSession(enablePlanes = false)
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error configuring session", e)
+                _logs.value = (_logs.value + "Error configuring session: ${e.message}").takeLast(5)
+            }
         }
     }
 
@@ -121,12 +139,17 @@ class MainActivity : ComponentActivity() {
      * Maps physical telemetry to architectural intent and streams it over MCP.
      */
     private fun triggerPerceptionPipeline() {
-        val currentSession = session ?: return
+        Log.d("MainActivity", "triggerPerceptionPipeline called")
+        val currentSession = session ?: run {
+            Log.e("MainActivity", "Session is null")
+            return
+        }
 
         // Ensure tracking is active before proceeding
         val arDevice = try {
             ArDevice.getInstance(currentSession)
         } catch (_: IllegalStateException) {
+            Log.w("MainActivity", "Tracking not active")
             _logs.value = (_logs.value + "Error: Tracking not active").takeLast(5)
             return
         }
@@ -134,13 +157,26 @@ class MainActivity : ComponentActivity() {
         val headPose = arDevice.state.value.devicePose
         val gazeRay = Ray(headPose.translation, headPose.forward)
 
-        // Perform a spatial hit-test against the environment
-        val hitResults = hitTest(currentSession, gazeRay)
-        val primaryHit = hitResults.firstOrNull()
+        // Perform a spatial hit-test against the environment if plane tracking is active
+        val planeTrackingActive = currentSession.config.planeTracking != PlaneTrackingMode.DISABLED
+        val primaryHit = if (planeTrackingActive) {
+            try {
+                hitTest(currentSession, gazeRay).firstOrNull()
+            } catch (e: Exception) {
+                Log.w("MainActivity", "Hit-test failed", e)
+                null
+            }
+        } else {
+            Log.d("MainActivity", "Plane tracking is disabled; skipping hitTest")
+            null
+        }
+
         val physicalAnchorId = primaryHit?.let { "anchor_${it.trackable.hashCode()}" } ?: "floating_context"
 
         if (primaryHit != null) {
             _logs.value = (_logs.value + "Hit detected: ${primaryHit.distance.format(2)}m").takeLast(5)
+        } else if (!planeTrackingActive) {
+            _logs.value = (_logs.value + "Planes disabled: using floating context").takeLast(5)
         }
 
         lifecycleScope.launch {
@@ -208,18 +244,21 @@ class MainActivity : ComponentActivity() {
             session = LocalSession.current
             LaunchedEffect(session) {
                 if (session != null) {
-                    val hasPlanePermission = ContextCompat.checkSelfPermission(
-                        this@MainActivity,
+                    val permissionsToRequest = arrayOf(
                         planePermission,
-                    ) == PackageManager.PERMISSION_GRANTED
-                    
-                    val hasCameraPermission = ContextCompat.checkSelfPermission(
-                        this@MainActivity,
+                        planeCoarsePermission,
                         cameraPermission,
-                    ) == PackageManager.PERMISSION_GRANTED
+                        eyePermission,
+                        handPermission,
+                        audioPermission
+                    )
 
-                    if (!hasPlanePermission || !hasCameraPermission) {
-                        requestPermissionLauncher.launch(arrayOf(planePermission, cameraPermission))
+                    val allGranted = permissionsToRequest.all {
+                        ContextCompat.checkSelfPermission(this@MainActivity, it) == PackageManager.PERMISSION_GRANTED
+                    }
+
+                    if (!allGranted) {
+                        requestPermissionLauncher.launch(permissionsToRequest)
                     } else {
                         configureSession()
                     }

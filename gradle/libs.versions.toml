@@ -31,7 +31,7 @@ xrCompose                 = "1.0.0-alpha14"
 xrArcore                  = "1.0.0-alpha14"
 
 # ── Ktor (SSE transport) ────────────────────────────────────────────────────
-ktor                      = "3.0.3"
+ktor                      = "2.3.12"
 
 # ── Test ────────────────────────────────────────────────────────────────────
 junit                     = "4.13.2"
@@ -75,7 +75,6 @@ androidx-xr-arcore                 = { group = "androidx.xr.arcore",   name = "a
 # ── Ktor ────────────────────────────────────────────────────────────────────
 ktor-server-core                  = { group = "io.ktor",               name = "ktor-server-core",                    version.ref = "ktor" }
 ktor-server-cio                   = { group = "io.ktor",               name = "ktor-server-cio",                     version.ref = "ktor" }
-ktor-server-sse                   = { group = "io.ktor",               name = "ktor-server-sse",                     version.ref = "ktor" }
 ktor-contentnegotiation           = { group = "io.ktor",               name = "ktor-server-content-negotiation",     version.ref = "ktor" }
 ktor-serialization-json           = { group = "io.ktor",               name = "ktor-serialization-kotlinx-json",     version.ref = "ktor" }
 
