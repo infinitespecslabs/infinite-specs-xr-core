@@ -7,6 +7,9 @@ import com.google.ai.client.generativeai.type.generationConfig
 import com.infinitespecs.xr.BuildConfig
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 /**
  * Evaluates real-time gaze duration data, spatial orientation matrices, and spoken
@@ -74,7 +77,7 @@ class SpatialIntentParser {
             The output MUST be a JSON object with the following fields:
             - nodeType: A CamelCase identifier for the component (e.g., "KafkaConsumer", "EventBridge").
             - physicalAnchorId: Should be "floating_context" unless specified otherwise.
-            - semanticConstraints: A list of strict technical requirements extracted from the speech.
+            - semanticConstraints: A list of strict technical requirements extracted from the speech. EACH requirement must be a simple flat string (e.g. "Must process incoming DMX tokens below 11ms latency"). Do NOT output objects inside this list.
             - loopEngineeringSkillTemplate: Choose the most appropriate: "autonomous-service-generator-v1", "ui-agent-v1", or "infrastructure-deployer-v1".
             
             Return ONLY the raw JSON.
@@ -83,7 +86,44 @@ class SpatialIntentParser {
         return try {
             val response = generativeModel.generateContent(prompt)
             val responseText = response.text ?: throw IllegalStateException("Empty response from Gemini")
-            json.decodeFromString<ArchitecturalIntent>(responseText).copy(spatialContext = serializableGaze)
+            
+            // Parse response as a generic JsonElement to inspect and adapt semanticConstraints robustly
+            val jsonElement = json.parseToJsonElement(responseText)
+            val jsonObject = jsonElement.jsonObject
+            
+            val nodeType = jsonObject["nodeType"]?.jsonPrimitive?.content ?: "UnknownNode"
+            val physicalAnchorId = jsonObject["physicalAnchorId"]?.jsonPrimitive?.content ?: "floating_context"
+            val loopEngineeringSkillTemplate = jsonObject["loopEngineeringSkillTemplate"]?.jsonPrimitive?.content ?: "autonomous-service-generator-v1"
+            
+            val semanticConstraints = mutableListOf<String>()
+            val constraintsJson = jsonObject["semanticConstraints"]
+            if (constraintsJson is kotlinx.serialization.json.JsonArray) {
+                constraintsJson.forEach { element ->
+                    try {
+                        if (element is kotlinx.serialization.json.JsonObject) {
+                            // If Gemini returned an object (e.g., { "type": "...", "value": "..." }), extract its content safely
+                            val type = element["type"]?.jsonPrimitive?.content ?: ""
+                            val value = element["value"]?.jsonPrimitive?.content ?: element.toString()
+                            val constraintText = if (type.isNotEmpty()) "$type: $value" else value
+                            semanticConstraints.add(constraintText)
+                        } else {
+                            semanticConstraints.add(element.jsonPrimitive.content)
+                        }
+                    } catch (pe: Exception) {
+                        semanticConstraints.add(element.toString())
+                    }
+                }
+            } else if (constraintsJson != null) {
+                semanticConstraints.add(constraintsJson.jsonPrimitive.content)
+            }
+
+            ArchitecturalIntent(
+                nodeType = nodeType,
+                physicalAnchorId = physicalAnchorId,
+                semanticConstraints = semanticConstraints,
+                loopEngineeringSkillTemplate = loopEngineeringSkillTemplate,
+                spatialContext = serializableGaze
+            )
         } catch (e: Exception) {
             Log.e("SpatialIntentParser", "Gemini generation failed", e)
             Log.d("SpatialIntentParser", "API Key present: ${BuildConfig.GOOGLE_AI_API_KEY.isNotEmpty()}")
