@@ -7,7 +7,6 @@ import com.google.ai.client.generativeai.type.generationConfig
 import com.infinitespecs.xr.BuildConfig
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -17,15 +16,15 @@ import kotlinx.serialization.json.jsonPrimitive
  *
  * Now powered by Google Gemini (Phase 3).
  */
-class SpatialIntentParser {
-
-    private val generativeModel = GenerativeModel(
+class SpatialIntentParser(
+    private val generativeModel: GenerativeModel = GenerativeModel(
         modelName = "gemini-2.5-flash",
         apiKey = BuildConfig.GOOGLE_AI_API_KEY,
         generationConfig = generationConfig {
             responseMimeType = "application/json"
         },
-    )
+    ),
+) {
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -87,15 +86,15 @@ class SpatialIntentParser {
             val response = generativeModel.generateContent(prompt)
             val responseText = response.text ?: throw IllegalStateException("Empty response from Gemini")
             Log.d("SpatialIntentParser", "Raw Gemini JSON: $responseText")
-            
+
             // Parse response as a generic JsonElement to inspect and adapt semanticConstraints robustly
             val jsonElement = json.parseToJsonElement(responseText)
             val jsonObject = jsonElement.jsonObject
-            
+
             val nodeType = jsonObject["nodeType"]?.jsonPrimitive?.content ?: "UnknownNode"
             val physicalAnchorId = jsonObject["physicalAnchorId"]?.jsonPrimitive?.content ?: "floating_context"
             val loopEngineeringSkillTemplate = jsonObject["loopEngineeringSkillTemplate"]?.jsonPrimitive?.content ?: "autonomous-service-generator-v1"
-            
+
             val semanticConstraints = mutableListOf<String>()
             val constraintsJson = jsonObject["semanticConstraints"]
             if (constraintsJson is kotlinx.serialization.json.JsonArray) {
@@ -123,7 +122,7 @@ class SpatialIntentParser {
                 physicalAnchorId = physicalAnchorId,
                 semanticConstraints = semanticConstraints,
                 loopEngineeringSkillTemplate = loopEngineeringSkillTemplate,
-                spatialContext = serializableGaze
+                spatialContext = serializableGaze,
             )
         } catch (e: Exception) {
             Log.e("SpatialIntentParser", "Gemini generation failed", e)

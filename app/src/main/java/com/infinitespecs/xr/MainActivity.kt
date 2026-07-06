@@ -250,7 +250,7 @@ class MainActivity : ComponentActivity() {
                         cameraPermission,
                         eyePermission,
                         handPermission,
-                        audioPermission
+                        audioPermission,
                     )
 
                     val allGranted = permissionsToRequest.all {
