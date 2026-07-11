@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Strange Loop Agent Terminal</title>
+  <!-- Google Fonts for premium typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="glow-bg"></div>
+  <div class="scanlines"></div>
+  
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo-area">
+        <span class="loop-icon">🌀</span>
+        <div class="title-meta">
+          <h1>STRANGE LOOP</h1>
+          <h2>Autonomous Workspace Agent HUD</h2>
+        </div>
+      </div>
+      <div class="status-indicator-badge" id="status-badge">
+        <span class="pulse-dot"></span>
+        <span class="badge-text" id="status-text">DISCONNECTED</span>
+      </div>
+    </header>
+
+    <!-- Dashboard Content Grid -->
+    <main class="dashboard-grid">
+      
+      <!-- Left Column: Controls and Topology -->
+      <section class="dashboard-col col-left">
+        
+        <!-- Connection Configuration -->
+        <div class="glass-card" id="connection-card">
+          <h3><span class="icon">🔌</span> XR Device Connectivity</h3>
+          <p class="description-text">Enter your Android XR device's IP (or 'localhost' for ADB forward on port 8080).</p>
+          <form class="control-form" id="config-form">
+            <div class="input-group">
+              <span class="input-prefix">http://</span>
+              <input type="text" id="device-ip-input" value="localhost" placeholder="localhost" required>
+              <span class="input-suffix">:8080</span>
+            </div>
+            <button type="submit" class="cyber-btn" id="connect-btn">Update IP & Reconnect</button>
+          </form>
+        </div>
+
+        <!-- Loop Topology Visualizer -->
+        <div class="glass-card" id="topology-card">
+          <h3><span class="icon">🧬</span> Self-Referential Topology</h3>
+          <div class="topology-diagram">
+            <!-- Central core showing closed status -->
+            <div class="topology-node observer" id="node-observer">
+              <div class="node-icon">🕶️</div>
+              <div class="node-label">Observer (XR)</div>
+            </div>
+            
+            <div class="topology-arrow arrow-r" id="arrow-obs-agent">
+              <svg viewBox="0 0 100 20">
+                <path d="M 0,10 Q 50,0 100,10" fill="none" stroke="var(--blue-glow)" stroke-width="2" stroke-dasharray="5 5"></path>
+              </svg>
+            </div>
+
+            <div class="topology-node agent active" id="node-agent">
+              <div class="node-icon">🤖</div>
+              <div class="node-label">Macbook Agent</div>
+            </div>
+
+            <div class="topology-arrow arrow-d" id="arrow-agent-code">
+              <svg viewBox="0 0 20 100">
+                <path d="M 10,0 Q 20,50 10,100" fill="none" stroke="var(--green-glow)" stroke-width="2" stroke-dasharray="5 5"></path>
+              </svg>
+            </div>
+
+            <div class="topology-node codebase" id="node-codebase">
+              <div class="node-icon">💻</div>
+              <div class="node-label">Workspace</div>
+            </div>
+
+            <div class="topology-arrow arrow-l" id="arrow-code-obs">
+              <svg viewBox="0 0 100 20">
+                <path d="M 100,10 Q 50,20 0,10" fill="none" stroke="var(--amber-glow)" stroke-width="2" stroke-dasharray="5 5"></path>
+              </svg>
+            </div>
+            
+            <div class="loop-status-indicator" id="loop-state-indicator">
+              <div class="loop-pulse"></div>
+              <span>LOOP IDLE</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Offline Manual intent trigger -->
+        <div class="glass-card" id="manual-trigger-card">
+          <h3><span class="icon">🛠️</span> Offline Manual Intent Trigger</h3>
+          <p class="description-text">Simulate spatial perception triggers directly from your workstation to verify loop compilation.</p>
+          <form class="control-form" id="mock-form">
+            <div class="form-row">
+              <div class="form-field">
+                <label for="mock-node-type">Node Type</label>
+                <input type="text" id="mock-node-type" value="KafkaConsumer" required>
+              </div>
+              <div class="form-field">
+                <label for="mock-anchor-id">Anchor Link ID</label>
+                <input type="text" id="mock-anchor-id" value="anchor_stage_rig_left_04" required>
+              </div>
+            </div>
+            
+            <div class="form-field">
+              <label for="mock-skill">Loop Agent Skill</label>
+              <select id="mock-skill">
+                <option value="autonomous-service-generator-v1">autonomous-service-generator-v1</option>
+                <option value="ui-agent-v1">ui-agent-v1</option>
+                <option value="infrastructure-deployer-v1">infrastructure-deployer-v1</option>
+              </select>
+            </div>
+
+            <div class="form-field">
+              <label for="mock-constraints">Semantic Constraints (one per line)</label>
+              <textarea id="mock-constraints" rows="3" required>Must process incoming DMX tokens below 11ms latency
+Should auto-recover when connection drops</textarea>
+            </div>
+
+            <button type="submit" class="cyber-btn accent">Inject Spatial Specification</button>
+          </form>
+        </div>
+
+      </section>
+
+      <!-- Right Column: Specs and Terminal -->
+      <section class="dashboard-col col-right">
+        
+        <!-- Live Spec Inspector -->
+        <div class="glass-card spec-card">
+          <div class="card-header">
+            <h3><span class="icon">📋</span> Active Specification</h3>
+            <span class="badge" id="spec-ver-badge">v2026-06-01</span>
+          </div>
+          <div class="json-wrapper">
+            <pre><code id="json-display" class="language-json">{
+  "status": "awaiting_telemetry",
+  "message": "Press 'Engage Perception Pipeline' on Android XR or submit manual intent form"
+}</code></pre>
+          </div>
+        </div>
+
+        <!-- Terminal Logs -->
+        <div class="glass-card terminal-card">
+          <div class="card-header">
+            <h3><span class="icon">🖥️</span> Agent Execution Log Stream</h3>
+            <button class="clear-btn" id="clear-logs-btn">Clear Logs</button>
+          </div>
+          <div class="terminal-body" id="terminal-body">
+            <div class="terminal-row system-row">
+              <span class="timestamp">[12:00:00]</span>
+              <span class="log-text">Initialize Strange Loop agent console...</span>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+  </div>
+  
+  <script src="client.js"></script>
+</body>
+</html>

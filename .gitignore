@@ -29,3 +29,8 @@ captures/
 
 # ── Gradle wrapper (keep the jar in source control) ───────────────────────────
 !gradle/wrapper/gradle-wrapper.jar
+
+# ── Macbook Agent Loop Simulation ──────────────────────────────────────────────
+macbook-agent/node_modules/
+simulated-agent-worktree/
+

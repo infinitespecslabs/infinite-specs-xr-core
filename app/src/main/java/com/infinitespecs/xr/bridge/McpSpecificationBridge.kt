@@ -56,8 +56,9 @@ class McpSpecificationBridge {
 
                     // Stream specifications to the connected client
                     _outboundSpecificationStream.collectLatest { payload ->
+                        val singleLinePayload = payload.replace("\n", "").replace("\r", "")
                         writeStringUtf8("event: specification\n")
-                        writeStringUtf8("data: $payload\n\n")
+                        writeStringUtf8("data: $singleLinePayload\n\n")
                         flush()
                     }
                 }
