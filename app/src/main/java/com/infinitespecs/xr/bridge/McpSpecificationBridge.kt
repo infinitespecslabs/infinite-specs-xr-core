@@ -57,6 +57,11 @@ class McpSpecificationBridge {
         }
         routing {
             get("/mcp/sse") {
+                val remoteIp = call.request.local.remoteHost
+                if (remoteIp != "127.0.0.1" && remoteIp != "localhost" && remoteIp.isNotEmpty()) {
+                    connectedHostIp = remoteIp
+                }
+                
                 call.respondBytesWriter(contentType = ContentType.Text.EventStream) {
                     // Send connection header
                     writeStringUtf8("event: connected\ndata: MCP Specification Daemon Active\n\n")
@@ -79,6 +84,11 @@ class McpSpecificationBridge {
             }
 
             post("/mcp/agent-state") {
+                val remoteIp = call.request.local.remoteHost
+                if (remoteIp != "127.0.0.1" && remoteIp != "localhost" && remoteIp.isNotEmpty()) {
+                    connectedHostIp = remoteIp
+                }
+                
                 val payloadText = call.receiveText()
                 try {
                     val payload = Json.decodeFromString<AgentStatePayload>(payloadText)
@@ -134,5 +144,9 @@ class McpSpecificationBridge {
         """.trimIndent()
 
         _outboundSpecificationStream.emit(formattedMcpPayload)
+    }
+
+    companion object {
+        var connectedHostIp: String = "10.0.2.2"
     }
 }

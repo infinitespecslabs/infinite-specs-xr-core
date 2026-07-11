@@ -201,7 +201,8 @@ class MainActivity : ComponentActivity() {
         _logs.value = (_logs.value + "Submitting choice: $selectedOption").takeLast(5)
         lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
-                val url = java.net.URL("http://10.0.2.2:3000/api/agent-input")
+                val hostIp = McpSpecificationBridge.connectedHostIp
+                val url = java.net.URL("http://$hostIp:3000/api/agent-input")
                 val conn = url.openConnection() as java.net.HttpURLConnection
                 conn.requestMethod = "POST"
                 conn.doOutput = true
