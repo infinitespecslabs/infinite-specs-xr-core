@@ -104,7 +104,7 @@ body {
   font-size: 20px;
   font-weight: 800;
   letter-spacing: 2px;
-  background: linear-gradient(90deg, #00f0ff, #39ff14);
+  background: linear-gradient(90deg, #ffbd00, #00f0ff);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -209,11 +209,12 @@ body {
   padding: 20px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
   transition: box-shadow 0.3s ease, border-color 0.3s ease;
+  position: relative;
 }
 
 .glass-card:hover {
-  box-shadow: 0 8px 32px rgba(0, 240, 255, 0.05);
-  border-color: rgba(56, 139, 253, 0.3);
+  box-shadow: 0 8px 32px rgba(255, 189, 0, 0.05);
+  border-color: rgba(255, 189, 0, 0.2);
 }
 
 .glass-card h3 {
@@ -229,7 +230,7 @@ body {
 }
 
 .glass-card .icon {
-  filter: drop-shadow(0 0 4px var(--blue-shadow));
+  filter: drop-shadow(0 0 4px var(--amber-shadow));
 }
 
 .description-text {
@@ -237,6 +238,139 @@ body {
   color: var(--text-secondary);
   margin-bottom: 16px;
   line-height: 1.5;
+}
+
+/* Pairing QR Code Card */
+.pairing-container {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.qr-code {
+  width: 90px;
+  height: 90px;
+  background: #ffffff;
+  padding: 6px;
+  border-radius: 6px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+}
+
+.qr-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(7, 1fr);
+  width: 100%;
+  height: 100%;
+  gap: 2px;
+}
+
+.qr-box {
+  background: transparent;
+}
+
+.qr-box.black {
+  background: #060913;
+}
+
+.qr-scanner-line {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: var(--amber-glow);
+  box-shadow: 0 0 8px var(--amber-glow);
+  animation: scan 2s linear infinite alternate;
+}
+
+@keyframes scan {
+  from {
+    top: 5%;
+  }
+  to {
+    top: 95%;
+  }
+}
+
+.pairing-code {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.code-label {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  letter-spacing: 1px;
+}
+
+.code-val {
+  font-size: 20px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: var(--amber-glow);
+  text-shadow: 0 0 8px var(--amber-shadow);
+}
+
+/* Interactive Remote Prompt Card */
+#interactive-prompt-card {
+  border-color: var(--amber-glow);
+  box-shadow: 0 0 20px var(--amber-shadow);
+  animation: slide-down 0.3s ease-out;
+}
+
+.prompt-alert-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.pulse-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--amber-glow);
+  box-shadow: 0 0 10px var(--amber-glow);
+  animation: pulse-slow 1s infinite alternate;
+}
+
+.prompt-options-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.prompt-option-chip {
+  background: rgba(255, 189, 0, 0.08);
+  border: 1px solid var(--amber-glow);
+  color: var(--amber-glow);
+  border-radius: 6px;
+  padding: 12px 16px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.prompt-option-chip:hover {
+  background: var(--amber-glow);
+  color: #060913;
+  box-shadow: 0 0 12px var(--amber-glow);
+}
+
+.hidden {
+  display: none !important;
 }
 
 /* Forms */
@@ -257,8 +391,8 @@ body {
 }
 
 .input-group:focus-within {
-  border-color: var(--blue-glow);
-  box-shadow: 0 0 10px rgba(0, 240, 255, 0.15);
+  border-color: var(--amber-glow);
+  box-shadow: 0 0 10px rgba(255, 189, 0, 0.15);
 }
 
 .input-prefix, .input-suffix {
@@ -312,7 +446,7 @@ body {
 }
 
 .form-field input:focus, .form-field select:focus, .form-field textarea:focus {
-  border-color: var(--blue-glow);
+  border-color: var(--amber-glow);
 }
 
 .form-field select {
@@ -380,15 +514,15 @@ body {
 }
 
 .cyber-btn.accent {
-  border-color: var(--green-glow);
-  color: var(--green-glow);
-  box-shadow: 0 0 10px rgba(57, 255, 20, 0.1);
+  border-color: var(--amber-glow);
+  color: var(--amber-glow);
+  box-shadow: 0 0 10px rgba(255, 189, 0, 0.1);
 }
 
 .cyber-btn.accent:hover {
-  background: var(--green-glow);
+  background: var(--amber-glow);
   color: #060913;
-  box-shadow: 0 0 15px var(--green-glow);
+  box-shadow: 0 0 15px var(--amber-glow);
 }
 
 /* Loop Topology Diagram */
@@ -567,9 +701,9 @@ body {
 .badge {
   font-family: var(--font-mono);
   font-size: 9px;
-  color: var(--blue-glow);
-  background: rgba(0, 240, 255, 0.1);
-  border: 1px solid rgba(0, 240, 255, 0.2);
+  color: var(--amber-glow);
+  background: rgba(255, 189, 0, 0.1);
+  border: 1px solid rgba(255, 189, 0, 0.2);
   padding: 2px 6px;
   border-radius: 4px;
 }
@@ -590,7 +724,7 @@ body {
 .json-wrapper code {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--blue-glow);
+  color: var(--amber-glow);
   line-height: 1.6;
 }
 
@@ -679,7 +813,7 @@ body {
 
 .terminal-row.agent-row {
   color: #c9d1d9;
-  border-left: 2px solid var(--green-glow);
+  border-left: 2px solid var(--amber-glow);
   padding-left: 6px;
   font-weight: 600;
   margin: 4px 0;
@@ -701,7 +835,7 @@ body {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(56, 139, 253, 0.3);
+  background: rgba(255, 189, 0, 0.3);
 }
 
 /* Animations */
@@ -717,15 +851,15 @@ body {
 @keyframes pulse {
   0% {
     transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(0, 240, 255, 0.4);
+    box-shadow: 0 0 0 0 rgba(255, 189, 0, 0.4);
   }
   70% {
     transform: scale(1);
-    box-shadow: 0 0 0 8px rgba(0, 240, 255, 0);
+    box-shadow: 0 0 0 8px rgba(255, 189, 0, 0);
   }
   100% {
     transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(0, 240, 255, 0);
+    box-shadow: 0 0 0 0 rgba(255, 189, 0, 0);
   }
 }
 
@@ -742,6 +876,17 @@ body {
   from {
     opacity: 0;
     transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
   }
   to {
     opacity: 1;

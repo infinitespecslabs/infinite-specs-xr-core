@@ -18,6 +18,7 @@ import io.ktor.utils.io.writeStringUtf8
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -42,6 +43,13 @@ class McpSpecificationBridge {
      * Observable stream of logs/messages received from external agents.
      */
     val inboundLogStream: Flow<String> = _inboundLogStream
+
+    private val _inboundStateStream = MutableSharedFlow<AgentStatePayload>()
+
+    /**
+     * Observable stream of state payloads received from external agents.
+     */
+    val inboundStateStream: Flow<AgentStatePayload> = _inboundStateStream
 
     private val server = embeddedServer(CIO, port = 8080) {
         install(ContentNegotiation) {
@@ -69,8 +77,27 @@ class McpSpecificationBridge {
                 _inboundLogStream.emit(log)
                 call.respondText("Log received")
             }
+
+            post("/mcp/agent-state") {
+                val payloadText = call.receiveText()
+                try {
+                    val payload = Json.decodeFromString<AgentStatePayload>(payloadText)
+                    _inboundStateStream.emit(payload)
+                    call.respondText("State updated")
+                } catch (e: Exception) {
+                    call.respondText("Error: ${e.message}", status = io.ktor.http.HttpStatusCode.BadRequest)
+                }
+            }
         }
     }
+
+    @Serializable
+    data class AgentStatePayload(
+        val state: String,
+        val prompt: String = "",
+        val options: List<String> = emptyList(),
+        val log: String = ""
+    )
 
     /**
      * Starts the MCP daemon server.

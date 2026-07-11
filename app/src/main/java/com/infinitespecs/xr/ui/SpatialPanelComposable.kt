@@ -1,446 +1,357 @@
 /*
  * SpatialPanelComposable.kt
- * infinite-specs-xr-core — UI Layer (Perception / Display)
+ * infinite-specs-xr-core — Waveguide HUD UI Layer
  *
- * Glanceable heads-up display panel rendered in the developer's field of
- * view using the androidx.xr.compose (Jetpack XR / Glimmer) Subspace APIs.
- *
- * Android XR Developer Preview 4
- * See: https://developer.android.com/xr/compose
- *
- * ┌─────────────────────────────────────────────────────────────────────────┐
- * │  SPATIAL PANEL LAYOUT                                                    │
- * │                                                                          │
- * │  ┌──────────────────────────────────────────────┐                       │
- * │  │  Infinite Specs         [●] STREAMING        │   ← SpatialPanel     │
- * │  │  Spatial Architecture Monitor                │                       │
- * │  │──────────────────────────────────────────────│                       │
- * │  │  ┌────────────┐  ┌────────────┐              │                       │
- * │  │  │ api-gateway│  │  auth-svc  │   ...        │   ← NodeCards        │
- * │  │  │ AsyncBridge│  │ KafkaCons  │              │                       │
- * │  │  └────────────┘  └────────────┘              │                       │
- * │  │──────────────────────────────────────────────│                       │
- * │  │  ▶ Streaming spec to IDE…                    │   ← Status bar       │
- * │  └──────────────────────────────────────────────┘                       │
- * └─────────────────────────────────────────────────────────────────────────┘
+ * Evolved into "Terminal Mode" inspired by the Even Realities G2 smart glasses.
+ * Renders an ultra-minimalist, semi-transparent monochrome amber HUD display
+ * for hands-free tracking and interactive loop control.
  */
 
 package com.infinitespecs.xr.ui
 
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Data models for the UI layer
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Immutable view-model snapshot representing a single architecture node card
- * rendered inside the spatial heads-up display.
- *
- * @param nodeId                       Stable node identifier (e.g., "api-gateway").
- * @param label                        Human-readable display label.
- * @param nodeType                     The node classifier (e.g. "AsynchronousEventBridge").
- * @param physicalAnchorId             Target real-world object vector link identifier.
- * @param semanticConstraints          List of system invariants parsed from user context.
- * @param loopEngineeringSkillTemplate Target background sub-agent execution flow.
- * @param isActive                     Whether this node is currently under gaze focus.
- */
-@Stable
-data class NodeCardState(
-    val nodeId: String,
-    val label: String,
-    val nodeType: String = "",
-    val physicalAnchorId: String = "",
-    val semanticConstraints: List<String> = emptyList(),
-    val loopEngineeringSkillTemplate: String = "",
-    val isActive: Boolean = false,
-)
-
-/**
- * Overall panel status communicated to the developer at a glance.
- */
-enum class PanelStatus {
-    IDLE,
-    PROCESSING,
-    STREAMING,
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Spatial panel composables
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Root spatial composable for the Infinite Specs heads-up display.
- *
- * On standard Android (no XR runtime) the composable renders as a regular
- * on-screen card — suitable for Compose Preview and JVM screenshot tests.
- */
-@Composable
-fun InfiniteSpecsHudPanel(
-    modifier: Modifier = Modifier,
-    nodes: List<NodeCardState>,
-    status: PanelStatus = PanelStatus.IDLE,
-    logs: List<String> = emptyList(),
-    onTrigger: () -> Unit = {},
-) {
-    Box(modifier = modifier) {
-        Surface(
-            modifier = Modifier
-                .clip(RoundedCornerShape(16.dp)),
-            color = HudColors.PanelBackground,
-            tonalElevation = 4.dp,
-            shadowElevation = 8.dp,
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                HudPanelHeader(status = status)
-                Spacer(modifier = Modifier.height(12.dp))
-                NodeCardRow(nodes = nodes)
-                if (logs.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    HudLogArea(logs = logs)
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                HudStatusBar(status = status)
-                Spacer(modifier = Modifier.height(12.dp))
-                Button(
-                    onClick = onTrigger,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = HudColors.AccentBlue),
-                    enabled = status == PanelStatus.IDLE,
-                ) {
-                    Text(
-                        text = "Engage Perception Pipeline",
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 12.sp,
-                        color = Color.White,
-                    )
-                }
-            }
-        }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Panel header showing the app title and streaming indicator badge.
- */
-@Composable
-private fun HudPanelHeader(status: PanelStatus) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column {
-            Text(
-                text = "Infinite Specs",
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp,
-                color = HudColors.TextPrimary,
-            )
-            Text(
-                text = "Loop Engineering research sandbox",
-                fontFamily = FontFamily.Monospace,
-                fontSize = 11.sp,
-                color = HudColors.TextSecondary,
-            )
-        }
-        StreamingBadge(status = status)
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Small indicator badge showing whether the MCP bridge is actively streaming.
- */
-@Composable
-private fun StreamingBadge(status: PanelStatus) {
-    val (badgeColor, badgeText) = when (status) {
-        PanelStatus.STREAMING -> HudColors.AccentGreen to "● STREAMING"
-        PanelStatus.PROCESSING -> HudColors.AccentAmber to "◌ PROCESSING"
-        PanelStatus.IDLE -> HudColors.TextDisabled to "○ IDLE"
-    }
-    Box(
-        modifier = Modifier
-            .background(
-                color = badgeColor.copy(alpha = 0.15f),
-                shape = RoundedCornerShape(8.dp),
-            )
-            .border(
-                width = 1.dp,
-                color = badgeColor.copy(alpha = 0.5f),
-                shape = RoundedCornerShape(8.dp),
-            )
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-    ) {
-        Text(
-            text = badgeText,
-            fontFamily = FontFamily.Monospace,
-            fontSize = 10.sp,
-            color = badgeColor,
-            fontWeight = FontWeight.Bold,
-        )
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Horizontally scrollable row of [NodeCard] items.
- */
-@Composable
-private fun NodeCardRow(nodes: List<NodeCardState>) {
-    if (nodes.isEmpty()) {
-        Text(
-            text = "No architecture nodes detected.",
-            fontFamily = FontFamily.Monospace,
-            fontSize = 12.sp,
-            color = HudColors.TextDisabled,
-        )
-        return
-    }
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(nodes, key = { it.nodeId }) { node ->
-            NodeCard(state = node)
-        }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Individual architecture node card.
- *
- * Displays the node label, resolved node type, target skill template, and anchor ID.
- */
-@Composable
-fun NodeCard(
-    state: NodeCardState,
-    modifier: Modifier = Modifier,
-) {
-    val borderColor = if (state.isActive) HudColors.AccentBlue else Color.Transparent
-    val cardBackground = if (state.isActive) {
-        HudColors.CardBackgroundActive
-    } else {
-        HudColors.CardBackground
-    }
-
-    Box(
-        modifier = modifier
-            .width(160.dp)
-            .background(color = cardBackground, shape = RoundedCornerShape(8.dp))
-            .border(width = 1.5.dp, color = borderColor, shape = RoundedCornerShape(8.dp))
-            .padding(10.dp),
-    ) {
-        Column {
-            Text(
-                text = state.label,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = HudColors.TextPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            if (state.nodeType.isNotEmpty()) {
-                Text(
-                    text = state.nodeType,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 10.sp,
-                    color = nodeTypeColor(state.nodeType),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            if (state.physicalAnchorId.isNotEmpty()) {
-                Text(
-                    text = "@ ${state.physicalAnchorId}",
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 9.sp,
-                    color = HudColors.TextSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            if (state.loopEngineeringSkillTemplate.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "Skill: ${state.loopEngineeringSkillTemplate}",
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 8.sp,
-                    color = HudColors.TextSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Area displaying real-time logs from external autonomous agents.
- */
-@Composable
-private fun HudLogArea(logs: List<String>) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
-            .padding(8.dp),
-    ) {
-        logs.forEach { log ->
-            Text(
-                text = "> $log",
-                fontFamily = FontFamily.Monospace,
-                fontSize = 9.sp,
-                color = HudColors.AccentGreen.copy(alpha = 0.8f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Bottom status bar displaying the current pipeline state to the developer.
- */
-@Composable
-private fun HudStatusBar(status: PanelStatus) {
-    val statusText = when (status) {
-        PanelStatus.IDLE -> "Awaiting spatial telemetry..."
-        PanelStatus.PROCESSING -> "Folding telemetry into MCP schema..."
-        PanelStatus.STREAMING -> "▶ Streaming specs to autonomous IDE loops..."
-    }
-    val statusColor = when (status) {
-        PanelStatus.STREAMING -> HudColors.AccentGreen
-        PanelStatus.PROCESSING -> HudColors.AccentAmber
-        PanelStatus.IDLE -> HudColors.TextDisabled
-    }
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                color = HudColors.StatusBarBackground,
-                shape = RoundedCornerShape(6.dp),
-            )
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-    ) {
-        Text(
-            text = statusText,
-            fontFamily = FontFamily.Monospace,
-            fontSize = 11.sp,
-            color = statusColor,
-        )
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Colour palette (dark HUD theme)
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Colour Palette (Amber Waveguide HUD Theme) ──────────────────────────────
 
 private object HudColors {
-    val PanelBackground = Color(0xCC0D1117) // near-black, 80% opacity
-    val CardBackground = Color(0xFF161B22)
-    val CardBackgroundActive = Color(0xFF1F3A5F)
-    val StatusBarBackground = Color(0xFF0D1117)
-    val TextPrimary = Color(0xFFE6EDF3)
-    val TextSecondary = Color(0xFF8B949E)
-    val TextDisabled = Color(0xFF484F58)
-    val AccentBlue = Color(0xFF58A6FF)
-    val AccentGreen = Color(0xFF3FB950)
-    val AccentAmber = Color(0xFFD29922)
+  val Background = Color(0x990A0D14)    // 60% opacity near-black
+  val Border = Color(0x33FFB300)        // 20% opacity amber border
+  val BorderActive = Color(0xFFFFB300)  // Solid glowing amber border
+  
+  val TextPrimary = Color(0xFFFFB300)   // Waveguide glowing amber
+  val TextSecondary = Color(0xB3FFB300) // 70% opacity amber
+  val TextMuted = Color(0x66FFB300)     // 40% opacity amber
+  
+  val CardBackground = Color(0x1AFFB300) // 10% opacity amber card background
+  val CardBackgroundSelected = Color(0x40FFB300) // 25% opacity selected card
 }
+
+// ── Composable HUD UI Elements ──────────────────────────────────────────────
 
 /**
- * Returns a color appropriate for the given nodeType.
+ * Waveguide-style Terminal HUD panel displaying agent compilation logs
+ * and offering direct input options when the loop requires human feedback.
  */
-private fun nodeTypeColor(nodeType: String): Color = when (nodeType) {
-    "AsynchronousEventBridge" -> Color(0xFFBC8CFF) // purple
-    "KafkaConsumer" -> Color(0xFF58A6FF) // blue
-    "DMXLightingController" -> Color(0xFF3FB950) // green
-    else -> Color(0xFFD29922) // amber
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Compose Previews
-// ─────────────────────────────────────────────────────────────────────────────
-
-@Preview(name = "HUD Panel — Streaming", showBackground = true, backgroundColor = 0xFF000000)
 @Composable
-private fun PreviewHudPanelStreaming() {
-    MaterialTheme {
-        InfiniteSpecsHudPanel(
-            nodes = listOf(
-                NodeCardState(
-                    nodeId = "api-gateway",
-                    label = "api-gateway",
-                    nodeType = "AsynchronousEventBridge",
-                    physicalAnchorId = "anchor_stage_rig_left_04",
-                    semanticConstraints = listOf("Must process incoming DMX tokens below 11ms latency"),
-                    loopEngineeringSkillTemplate = "autonomous-service-generator-v1",
-                    isActive = true,
-                ),
-                NodeCardState(
-                    nodeId = "auth-service",
-                    label = "auth-service",
-                    nodeType = "KafkaConsumer",
-                    physicalAnchorId = "anchor_auth_01",
-                    semanticConstraints = emptyList(),
-                    loopEngineeringSkillTemplate = "auth-agent-v2",
-                ),
-            ),
-            status = PanelStatus.STREAMING,
-            logs = listOf(
-                "Analyzing spatial context...",
-                "Mapping intent to MCP schema...",
-                "Broadcasting spec to workstation...",
-            ),
+fun InfiniteSpecsTerminalHudPanel(
+  modifier: Modifier = Modifier,
+  agentState: String = "OFFLINE",
+  prompt: String = "",
+  options: List<String> = emptyList(),
+  logs: List<String> = emptyList(),
+  onOptionSelected: (String) -> Unit = {},
+  onTrigger: () -> Unit = {},
+) {
+  Box(
+    modifier = modifier
+      .clip(RoundedCornerShape(12.dp))
+      .background(HudColors.Background)
+      .border(1.dp, HudColors.Border, RoundedCornerShape(12.dp))
+      .padding(16.dp)
+  ) {
+    Column(
+      modifier = Modifier.fillMaxSize(),
+      verticalArrangement = Arrangement.SpaceBetween
+    ) {
+      // 1. Header Row: Connection and Status Metadata
+      HudHeader(agentState = agentState)
+
+      Spacer(modifier = Modifier.height(10.dp))
+
+      // 2. Interactive Area: Prompt or Terminal Stream
+      if (agentState == "AWAITING_INPUT" && options.isNotEmpty()) {
+        InteractiveInputCard(
+          prompt = prompt,
+          options = options,
+          onOptionSelected = onOptionSelected
         )
+      } else {
+        TerminalLogsView(logs = logs, agentState = agentState)
+      }
+
+      Spacer(modifier = Modifier.height(10.dp))
+
+      // 3. Footer Control Bar
+      HudFooter(agentState = agentState, onTrigger = onTrigger)
     }
+  }
 }
 
-@Preview(name = "HUD Panel — Idle (empty)", showBackground = true, backgroundColor = 0xFF000000)
+// ── Sub-Composables ──────────────────────────────────────────────────────────
+
 @Composable
-private fun PreviewHudPanelIdle() {
-    MaterialTheme {
-        InfiniteSpecsHudPanel(nodes = emptyList(), status = PanelStatus.IDLE)
+private fun HudHeader(agentState: String) {
+  val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+  
+  // Flashing animation for awaiting input
+  val flashAlpha by infiniteTransition.animateFloat(
+    initialValue = 0.4f,
+    targetValue = 1f,
+    animationSpec = infiniteRepeatable(
+      animation = tween(800, easing = LinearEasing),
+      repeatMode = RepeatMode.Reverse
+    ),
+    label = "flash"
+  )
+
+  Row(
+    modifier = Modifier.fillMaxWidth(),
+    horizontalArrangement = Arrangement.SpaceBetween,
+    verticalAlignment = Alignment.CenterVertically
+  ) {
+    Column {
+      Text(
+        text = "TERMINAL MODE // ACTIVE",
+        fontFamily = FontFamily.Monospace,
+        fontWeight = FontWeight.Bold,
+        fontSize = 13.sp,
+        color = HudColors.TextPrimary
+      )
+      Text(
+        text = "SESSION: claude-code-75e // WORKSTATION: localhost",
+        fontFamily = FontFamily.Monospace,
+        fontSize = 9.sp,
+        color = HudColors.TextMuted
+      )
     }
+    
+    // Status text wrapper
+    val statusAlpha = if (agentState == "AWAITING_INPUT") flashAlpha else 1f
+    Box(
+      modifier = Modifier
+        .alpha(statusAlpha)
+        .border(1.dp, HudColors.TextPrimary, RoundedCornerShape(4.dp))
+        .padding(horizontal = 6.dp, vertical = 2.dp)
+    ) {
+      Text(
+        text = "[$agentState]",
+        fontFamily = FontFamily.Monospace,
+        fontWeight = FontWeight.Bold,
+        fontSize = 10.sp,
+        color = HudColors.TextPrimary
+      )
+    }
+  }
+}
+
+@Composable
+private fun ColumnScope.TerminalLogsView(logs: List<String>, agentState: String) {
+  Box(
+    modifier = Modifier
+      .fillMaxWidth()
+      .weight(1f)
+      .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
+      .border(1.dp, HudColors.Border, RoundedCornerShape(6.dp))
+      .padding(10.dp)
+  ) {
+    if (logs.isEmpty()) {
+      Text(
+        text = when (agentState) {
+          "OFFLINE" -> "SYSTEM OFFLINE\nWorkstation daemon disconnected.\n\nOpen http://localhost:3000\nor run 'npm start' on your Macbook."
+          "IDLE" -> "CONSOLE READY\nAwaiting spatial telemetry transcript..."
+          else -> "STREAMING OUTPUT..."
+        },
+        fontFamily = FontFamily.Monospace,
+        fontSize = 11.sp,
+        color = HudColors.TextSecondary,
+        modifier = Modifier.align(Alignment.Center),
+        textAlign = TextAlign.Center
+      )
+    } else {
+      LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        reverseLayout = false
+      ) {
+        items(logs) { log ->
+          Row(modifier = Modifier.fillMaxWidth()) {
+            Text(
+              text = "> ",
+              fontFamily = FontFamily.Monospace,
+              fontSize = 10.sp,
+              color = HudColors.TextMuted
+            )
+            Text(
+              text = log,
+              fontFamily = FontFamily.Monospace,
+              fontSize = 10.sp,
+              color = HudColors.TextSecondary,
+              maxLines = 2,
+              overflow = TextOverflow.Ellipsis
+            )
+          }
+        }
+      }
+    }
+  }
+}
+
+@Composable
+private fun ColumnScope.InteractiveInputCard(
+  prompt: String,
+  options: List<String>,
+  onOptionSelected: (String) -> Unit
+) {
+  Column(
+    modifier = Modifier
+      .fillMaxWidth()
+      .weight(1f)
+      .background(HudColors.CardBackground, RoundedCornerShape(8.dp))
+      .border(1.dp, HudColors.BorderActive, RoundedCornerShape(8.dp))
+      .padding(12.dp),
+    verticalArrangement = Arrangement.SpaceBetween
+  ) {
+    Column {
+      Text(
+        text = "INPUT REQUESTED",
+        fontFamily = FontFamily.Monospace,
+        fontWeight = FontWeight.Bold,
+        fontSize = 11.sp,
+        color = HudColors.TextPrimary
+      )
+      Spacer(modifier = Modifier.height(4.dp))
+      Text(
+        text = prompt.ifEmpty { "Choose configuration option:" },
+        fontFamily = FontFamily.Monospace,
+        fontSize = 12.sp,
+        color = HudColors.TextSecondary,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis
+      )
+    }
+
+    Spacer(modifier = Modifier.height(8.dp))
+
+    // Options Layout (Vertical Stack for clear targeting)
+    Column(
+      verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+      options.forEach { option ->
+        Box(
+          modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color.Black.copy(alpha = 0.4f))
+            .border(1.dp, HudColors.Border, RoundedCornerShape(6.dp))
+            .clickable { onOptionSelected(option) }
+            .padding(10.dp)
+        ) {
+          Text(
+            text = "[ ] $option",
+            fontFamily = FontFamily.Monospace,
+            fontSize = 11.sp,
+            color = HudColors.TextPrimary,
+            modifier = Modifier.align(Alignment.CenterStart)
+          )
+        }
+      }
+    }
+  }
+}
+
+@Composable
+private fun HudFooter(agentState: String, onTrigger: () -> Unit) {
+  if (agentState == "IDLE") {
+    Box(
+      modifier = Modifier
+        .fillMaxWidth()
+        .clip(RoundedCornerShape(6.dp))
+        .background(HudColors.CardBackground)
+        .border(1.5.dp, HudColors.BorderActive, RoundedCornerShape(6.dp))
+        .clickable { onTrigger() }
+        .padding(vertical = 10.dp),
+      contentAlignment = Alignment.Center
+    ) {
+      Text(
+        text = "ENGAGE PERCEPTION PIPELINE",
+        fontFamily = FontFamily.Monospace,
+        fontWeight = FontWeight.Bold,
+        fontSize = 11.sp,
+        color = HudColors.TextPrimary
+      )
+    }
+  } else {
+    Box(
+      modifier = Modifier
+        .fillMaxWidth()
+        .clip(RoundedCornerShape(6.dp))
+        .background(Color.Transparent)
+        .border(1.dp, HudColors.Border, RoundedCornerShape(6.dp))
+        .padding(vertical = 10.dp),
+      contentAlignment = Alignment.Center
+    ) {
+      Text(
+        text = when (agentState) {
+          "OFFLINE" -> "DAEMON OFFLINE // CHECK CONSOLE"
+          "THINKING" -> "AGENT IS THINKING..."
+          "EXECUTING" -> "COMPILING WORKSPACE CODE..."
+          "AWAITING_INPUT" -> "AWAITING REMOTE SELECTION..."
+          "SUCCESS" -> "VERIFICATION COMPLETED // READY"
+          else -> "PROCESSING DEPLOYMENT STREAM..."
+        },
+        fontFamily = FontFamily.Monospace,
+        fontSize = 10.sp,
+        color = HudColors.TextSecondary
+      )
+    }
+  }
+}
+
+// ── Compose Previews ─────────────────────────────────────────────────────────
+
+@Preview(name = "HUD Waveguide — Idle", showBackground = true, backgroundColor = 0xFF050505)
+@Composable
+private fun PreviewTerminalHudIdle() {
+  InfiniteSpecsTerminalHudPanel(
+    agentState = "IDLE",
+    logs = emptyList()
+  )
+}
+
+@Preview(name = "HUD Waveguide — Awaiting Input", showBackground = true, backgroundColor = 0xFF050505)
+@Composable
+private fun PreviewTerminalHudAwaitingInput() {
+  InfiniteSpecsTerminalHudPanel(
+    agentState = "AWAITING_INPUT",
+    prompt = "Select DMX channel footprint:",
+    options = listOf("1-Ch (Dimmer)", "3-Ch (RGB)", "4-Ch (RGBA)"),
+    logs = listOf("Ingested specification", "Created workspace worktree")
+  )
+}
+
+@Preview(name = "HUD Waveguide — Streaming logs", showBackground = true, backgroundColor = 0xFF050505)
+@Composable
+private fun PreviewTerminalHudStreaming() {
+  InfiniteSpecsTerminalHudPanel(
+    agentState = "EXECUTING",
+    logs = listOf(
+      "Analyzing spatial anchors...",
+      "Generating code KafkaConsumer.kt",
+      "Running compiler task :app:compileKotlin",
+      "[compiler] Symbols resolved successfully."
+    )
+  )
 }

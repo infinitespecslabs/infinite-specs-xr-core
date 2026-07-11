@@ -21,7 +21,7 @@
         <span class="loop-icon">🌀</span>
         <div class="title-meta">
           <h1>STRANGE LOOP</h1>
-          <h2>Autonomous Workspace Agent HUD</h2>
+          <h2>Waveguide Terminal Mode HUD</h2>
         </div>
       </div>
       <div class="status-indicator-badge" id="status-badge">
@@ -33,7 +33,7 @@
     <!-- Dashboard Content Grid -->
     <main class="dashboard-grid">
       
-      <!-- Left Column: Controls and Topology -->
+      <!-- Left Column: Controls, Pairing, and Topology -->
       <section class="dashboard-col col-left">
         
         <!-- Connection Configuration -->
@@ -50,14 +50,39 @@
           </form>
         </div>
 
+        <!-- Terminal Mode Pairing QR Code -->
+        <div class="glass-card" id="pairing-card">
+          <h3><span class="icon">📱</span> G2 Smart Glasses Pairing</h3>
+          <p class="description-text">Scan this QR code with your Even Realities G2 glasses camera or mobile app to mirror the terminal HUD session.</p>
+          <div class="pairing-container">
+            <div class="qr-code">
+              <!-- Mock QR Code with CSS grid and scan overlay -->
+              <div class="qr-grid">
+                <div class="qr-box black"></div><div class="qr-box black"></div><div class="qr-box black"></div><div class="qr-box"></div><div class="qr-box black"></div><div class="qr-box black"></div><div class="qr-box black"></div>
+                <div class="qr-box black"></div><div class="qr-box"></div><div class="qr-box black"></div><div class="qr-box"></div><div class="qr-box black"></div><div class="qr-box"></div><div class="qr-box black"></div>
+                <div class="qr-box black"></div><div class="qr-box black"></div><div class="qr-box black"></div><div class="qr-box"></div><div class="qr-box black"></div><div class="qr-box black"></div><div class="qr-box black"></div>
+                <div class="qr-box"></div><div class="qr-box"></div><div class="qr-box"></div><div class="qr-box black"></div><div class="qr-box"></div><div class="qr-box"></div><div class="qr-box"></div>
+                <div class="qr-box black"></div><div class="qr-box"></div><div class="qr-box black"></div><div class="qr-box"></div><div class="qr-box black"></div><div class="qr-box"></div><div class="qr-box black"></div>
+                <div class="qr-box black"></div><div class="qr-box black"></div><div class="qr-box"></div><div class="qr-box black"></div><div class="qr-box"></div><div class="qr-box black"></div><div class="qr-box"></div>
+                <div class="qr-box black"></div><div class="qr-box black"></div><div class="qr-box black"></div><div class="qr-box"></div><div class="qr-box black"></div><div class="qr-box"></div><div class="qr-box black"></div>
+              </div>
+              <div class="qr-scanner-line"></div>
+            </div>
+            <div class="pairing-code">
+              <span class="code-label">PAIR CODE</span>
+              <span class="code-val">SL-75EE</span>
+            </div>
+          </div>
+        </div>
+
         <!-- Loop Topology Visualizer -->
         <div class="glass-card" id="topology-card">
-          <h3><span class="icon">🧬</span> Self-Referential Topology</h3>
+          <h3><span class="icon">🧬</span> Closed-Loop Topology</h3>
           <div class="topology-diagram">
             <!-- Central core showing closed status -->
             <div class="topology-node observer" id="node-observer">
               <div class="node-icon">🕶️</div>
-              <div class="node-label">Observer (XR)</div>
+              <div class="node-label">HUD Panel</div>
             </div>
             
             <div class="topology-arrow arrow-r" id="arrow-obs-agent">
@@ -95,10 +120,41 @@
           </div>
         </div>
 
+      </section>
+
+      <!-- Right Column: Specs, Terminal, and Prompts -->
+      <section class="dashboard-col col-right">
+        
+        <!-- Waveguide Prompt Response Option Panel (Dynamic content overlay) -->
+        <div class="glass-card hidden" id="interactive-prompt-card">
+          <div class="prompt-alert-header">
+            <h3><span class="icon">🔔</span> Waveguide Input Requested</h3>
+            <span class="pulse-indicator"></span>
+          </div>
+          <p class="description-text" id="prompt-message-text">Awaiting input choices...</p>
+          <div class="prompt-options-stack" id="prompt-options-container">
+            <!-- Clickable option chips injected by client.js -->
+          </div>
+        </div>
+
+        <!-- Live Spec Inspector -->
+        <div class="glass-card spec-card">
+          <div class="card-header">
+            <h3><span class="icon">📋</span> Active Specification</h3>
+            <span class="badge" id="spec-ver-badge">v2026-06-01</span>
+          </div>
+          <div class="json-wrapper">
+            <pre><code id="json-display" class="language-json">{
+  "status": "awaiting_telemetry",
+  "message": "Press 'Engage Perception Pipeline' on Android XR or submit manual intent form"
+}</code></pre>
+          </div>
+        </div>
+
         <!-- Offline Manual intent trigger -->
         <div class="glass-card" id="manual-trigger-card">
-          <h3><span class="icon">🛠️</span> Offline Manual Intent Trigger</h3>
-          <p class="description-text">Simulate spatial perception triggers directly from your workstation to verify loop compilation.</p>
+          <h3><span class="icon">🛠️</span> Workstation Manual Trigger</h3>
+          <p class="description-text">Trigger spatial perception transcripts offline to test waveguide compilation.</p>
           <form class="control-form" id="mock-form">
             <div class="form-row">
               <div class="form-field">
@@ -122,7 +178,7 @@
 
             <div class="form-field">
               <label for="mock-constraints">Semantic Constraints (one per line)</label>
-              <textarea id="mock-constraints" rows="3" required>Must process incoming DMX tokens below 11ms latency
+              <textarea id="mock-constraints" rows="2" required>Must process incoming DMX tokens below 11ms latency
 Should auto-recover when connection drops</textarea>
             </div>
 
@@ -130,29 +186,10 @@ Should auto-recover when connection drops</textarea>
           </form>
         </div>
 
-      </section>
-
-      <!-- Right Column: Specs and Terminal -->
-      <section class="dashboard-col col-right">
-        
-        <!-- Live Spec Inspector -->
-        <div class="glass-card spec-card">
-          <div class="card-header">
-            <h3><span class="icon">📋</span> Active Specification</h3>
-            <span class="badge" id="spec-ver-badge">v2026-06-01</span>
-          </div>
-          <div class="json-wrapper">
-            <pre><code id="json-display" class="language-json">{
-  "status": "awaiting_telemetry",
-  "message": "Press 'Engage Perception Pipeline' on Android XR or submit manual intent form"
-}</code></pre>
-          </div>
-        </div>
-
         <!-- Terminal Logs -->
         <div class="glass-card terminal-card">
           <div class="card-header">
-            <h3><span class="icon">🖥️</span> Agent Execution Log Stream</h3>
+            <h3><span class="icon">🖥️</span> Terminal Log Stream</h3>
             <button class="clear-btn" id="clear-logs-btn">Clear Logs</button>
           </div>
           <div class="terminal-body" id="terminal-body">

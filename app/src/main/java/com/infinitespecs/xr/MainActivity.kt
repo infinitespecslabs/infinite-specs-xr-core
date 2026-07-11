@@ -40,10 +40,9 @@ import androidx.xr.runtime.Session
 import androidx.xr.runtime.math.Ray
 import androidx.xr.runtime.math.Vector3
 import com.infinitespecs.xr.bridge.McpSpecificationBridge
+import com.infinitespecs.xr.bridge.McpSpecificationBridge.AgentStatePayload
 import com.infinitespecs.xr.perception.SpatialIntentParser
-import com.infinitespecs.xr.ui.InfiniteSpecsHudPanel
-import com.infinitespecs.xr.ui.NodeCardState
-import com.infinitespecs.xr.ui.PanelStatus
+import com.infinitespecs.xr.ui.InfiniteSpecsTerminalHudPanel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.launchIn
@@ -67,8 +66,9 @@ class MainActivity : ComponentActivity() {
 
     // ── UI state ─────────────────────────────────────────────────────────────
 
-    private val _panelStatus = MutableStateFlow(PanelStatus.IDLE)
-    private val _nodes = MutableStateFlow<List<NodeCardState>>(emptyList())
+    private val _agentState = MutableStateFlow("OFFLINE")
+    private val _inputPrompt = MutableStateFlow("")
+    private val _inputOptions = MutableStateFlow<List<String>>(emptyList())
     private val _logs = MutableStateFlow<List<String>>(emptyList())
 
     private var session: Session? = null
@@ -180,7 +180,9 @@ class MainActivity : ComponentActivity() {
         }
 
         lifecycleScope.launch {
-            _panelStatus.value = PanelStatus.PROCESSING
+            _agentState.value = "THINKING"
+            _inputPrompt.value = ""
+            _inputOptions.value = emptyList()
             delay(1500.milliseconds) // Simulate some telemetry processing latency
 
             val intent = parser.parseTokensToSchemaConstraint(
@@ -189,6 +191,38 @@ class MainActivity : ComponentActivity() {
             ).copy(physicalAnchorId = physicalAnchorId)
 
             bridge.streamIntentToAutonomousAgentWorktree(intent)
+        }
+    }
+
+    /**
+     * Submits user choice back to the Macbook agent loop.
+     */
+    private fun submitAgentInput(selectedOption: String) {
+        _logs.value = (_logs.value + "Submitting choice: $selectedOption").takeLast(5)
+        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val url = java.net.URL("http://10.0.2.2:3000/api/agent-input")
+                val conn = url.openConnection() as java.net.HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.doOutput = true
+                conn.setRequestProperty("Content-Type", "application/json")
+                
+                val jsonPayload = "{\"selectedOption\":\"$selectedOption\"}"
+                conn.outputStream.use { os ->
+                    os.write(jsonPayload.toByteArray())
+                }
+                
+                val responseCode = conn.responseCode
+                if (responseCode == 200) {
+                    _logs.value = (_logs.value + "Workstation acknowledged choice").takeLast(5)
+                } else {
+                    _logs.value = (_logs.value + "Workstation error: $responseCode").takeLast(5)
+                }
+                conn.disconnect()
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Failed to submit agent input", e)
+                _logs.value = (_logs.value + "Input delivery failed: ${e.message}").takeLast(5)
+            }
         }
     }
 
@@ -205,31 +239,26 @@ class MainActivity : ComponentActivity() {
 
         // Start the MCP daemon server
         bridge.start()
+        _agentState.value = "IDLE"
 
         // Wire up the bridge output stream to update the UI State
         bridge.outboundSpecificationStream
             .onEach {
-                // Transition UI to STREAMING when a payload is active
-                _panelStatus.value = PanelStatus.STREAMING
+                _agentState.value = "THINKING"
+                _inputPrompt.value = ""
+                _inputOptions.value = emptyList()
+            }
+            .launchIn(lifecycleScope)
 
-                // Note: In a real app, we would parse the payload back into an Intent
-                // For this prototype, we just refresh the UI with a consistent state
-                val intent = parser.parseTokensToSchemaConstraint(
-                    voiceTranscript = "Declare an asynchronous consumer tracking the stage rig left",
-                    gazeRay = Ray(Vector3.Zero, Vector3(0f, 0f, -1f)),
-                )
-
-                _nodes.value = listOf(
-                    NodeCardState(
-                        nodeId = "event-bridge",
-                        label = intent.nodeType,
-                        nodeType = intent.nodeType,
-                        physicalAnchorId = intent.physicalAnchorId,
-                        semanticConstraints = intent.semanticConstraints,
-                        loopEngineeringSkillTemplate = intent.loopEngineeringSkillTemplate,
-                        isActive = true,
-                    ),
-                )
+        // Listen for inbound state stream from external agents
+        bridge.inboundStateStream
+            .onEach { payload ->
+                _agentState.value = payload.state
+                _inputPrompt.value = payload.prompt
+                _inputOptions.value = payload.options
+                if (payload.log.isNotEmpty()) {
+                    _logs.value = (_logs.value + payload.log).takeLast(5)
+                }
             }
             .launchIn(lifecycleScope)
 
@@ -269,18 +298,22 @@ class MainActivity : ComponentActivity() {
                 Subspace {
                     SpatialPanel(
                         modifier = SubspaceModifier
-                            .width(640.dp)
-                            .height(480.dp)
+                            .width(520.dp)
+                            .height(380.dp)
                             .transformingMovable(),
                     ) {
-                        val nodes by _nodes.collectAsState()
-                        val status by _panelStatus.collectAsState()
+                        val agentState by _agentState.collectAsState()
+                        val prompt by _inputPrompt.collectAsState()
+                        val options by _inputOptions.collectAsState()
                         val logs by _logs.collectAsState()
-                        InfiniteSpecsHudPanel(
-                            nodes = nodes,
-                            status = status,
+                        InfiniteSpecsTerminalHudPanel(
+                            agentState = agentState,
+                            prompt = prompt,
+                            options = options,
                             logs = logs,
-                        ) { triggerPerceptionPipeline() }
+                            onOptionSelected = { option -> submitAgentInput(option) },
+                            onTrigger = { triggerPerceptionPipeline() }
+                        )
                     }
                 }
             }

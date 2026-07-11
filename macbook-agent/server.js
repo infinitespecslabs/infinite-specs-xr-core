@@ -18,12 +18,14 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Global state
 let deviceIp = 'localhost';
 let connectionStatus = 'disconnected'; // disconnected, connecting, connected
+let currentAgentState = 'IDLE';        // IDLE, THINKING, EXECUTING, AWAITING_INPUT, SUCCESS
 let activeIntent = null;
 let terminalLogs = [];
 let sseClients = [];
 let androidSseRequest = null;
+let pendingInputPromise = null;
 
-// Ensure logs function pushes to global terminalLogs list and syncs to frontend clients
+// Helper to push logs and broadcast to dashboard
 function addLog(text, type = 'info') {
   const timestamp = new Date().toLocaleTimeString();
   const logEntry = { timestamp, text, type };
@@ -44,23 +46,26 @@ function broadcast(payload) {
 
 // POST logs back to the Android XR app Ktor server
 function postLogToAndroidXR(text) {
-  if (deviceIp === 'localhost' || deviceIp.trim() === '') {
-    // If localhost, use 127.0.0.1
-    sendPost('127.0.0.1', text);
-  } else {
-    sendPost(deviceIp, text);
-  }
+  const ip = (deviceIp === 'localhost' || deviceIp.trim() === '') ? '127.0.0.1' : deviceIp;
+  sendPost(ip, '/mcp/logs', text);
 }
 
-function sendPost(ip, text) {
+// POST active state payloads back to the Android XR Ktor server
+function postStateToAndroidXR(state, prompt = '', options = [], logText = '') {
+  const ip = (deviceIp === 'localhost' || deviceIp.trim() === '') ? '127.0.0.1' : deviceIp;
+  const payload = JSON.stringify({ state, prompt, options, log: logText });
+  sendPost(ip, '/mcp/agent-state', payload, 'application/json');
+}
+
+function sendPost(ip, pathUrl, data, contentType = 'text/plain') {
   const options = {
     hostname: ip,
     port: 8080,
-    path: '/mcp/logs',
+    path: pathUrl,
     method: 'POST',
     headers: {
-      'Content-Type': 'text/plain',
-      'Content-Length': Buffer.byteLength(text)
+      'Content-Type': contentType,
+      'Content-Length': Buffer.byteLength(data)
     }
   };
 
@@ -69,10 +74,13 @@ function sendPost(ip, text) {
   });
 
   req.on('error', (e) => {
-    addLog(`Unable to push log to Android XR: ${e.message}`, 'error');
+    // Suppress console spam if offline, but show error in terminal logs occasionally
+    if (pathUrl === '/mcp/agent-state') {
+      console.log(`[DAEMON-OFFLINE] Unable to sync state to Android XR`);
+    }
   });
 
-  req.write(text);
+  req.write(data);
   req.end();
 }
 
@@ -84,7 +92,7 @@ function connectToAndroidXR() {
 
   const ip = (deviceIp === 'localhost' || deviceIp.trim() === '') ? '127.0.0.1' : deviceIp;
   connectionStatus = 'connecting';
-  broadcast({ type: 'status', data: { connectionStatus, deviceIp } });
+  broadcast({ type: 'status', data: { connectionStatus, deviceIp, currentAgentState } });
   addLog(`Connecting to Android XR spec daemon at http://${ip}:8080/mcp/sse...`, 'system');
 
   const options = {
@@ -100,15 +108,15 @@ function connectToAndroidXR() {
   const req = http.get(options, (res) => {
     if (res.statusCode !== 200) {
       connectionStatus = 'disconnected';
-      broadcast({ type: 'status', data: { connectionStatus, deviceIp } });
+      broadcast({ type: 'status', data: { connectionStatus, deviceIp, currentAgentState } });
       addLog(`Failed to connect. Server returned status code ${res.statusCode}`, 'error');
       return;
     }
 
     connectionStatus = 'connected';
-    broadcast({ type: 'status', data: { connectionStatus, deviceIp } });
+    broadcast({ type: 'status', data: { connectionStatus, deviceIp, currentAgentState } });
     addLog(`Connected to Android XR specification stream!`, 'success');
-    postLogToAndroidXR("[Macbook Agent] Bidirectional loop handshake success.");
+    postStateToAndroidXR('IDLE', '', [], '[Macbook Agent] Pair success. Waveguide sync ready.');
 
     let buffer = '';
 
@@ -147,14 +155,14 @@ function connectToAndroidXR() {
 
     res.on('end', () => {
       connectionStatus = 'disconnected';
-      broadcast({ type: 'status', data: { connectionStatus, deviceIp } });
+      broadcast({ type: 'status', data: { connectionStatus, deviceIp, currentAgentState } });
       addLog(`Android XR connection closed by remote host.`, 'warning');
     });
   });
 
   req.on('error', (e) => {
     connectionStatus = 'disconnected';
-    broadcast({ type: 'status', data: { connectionStatus, deviceIp } });
+    broadcast({ type: 'status', data: { connectionStatus, deviceIp, currentAgentState } });
     addLog(`Connection error to Android XR spec daemon: ${e.message}`, 'error');
   });
 
@@ -182,6 +190,9 @@ async function runAgentLoop(spec) {
 
   try {
     // Stage 1: Ingesting
+    currentAgentState = 'THINKING';
+    broadcast({ type: 'status', data: { connectionStatus, deviceIp, currentAgentState } });
+    postStateToAndroidXR('THINKING', '', [], `[Agent] Ingesting specification: ${nodeType}`);
     addLog(`[Loop Stage 1/5] Ingesting intent specifications...`, 'agent');
     await sleep(800);
     addLog(`Targeting spatial node: '${nodeType}' anchored to '${anchorId}'`, 'info');
@@ -189,10 +200,12 @@ async function runAgentLoop(spec) {
     constraints.forEach((rule, idx) => {
       addLog(`Constraint #${idx + 1}: "${rule}"`, 'info');
     });
-    postLogToAndroidXR(`[Agent] Ingested spec: ${nodeType}`);
 
-    // Stage 2: Codebase Sync & Generation
-    await sleep(1500);
+    // Stage 2: Codebase Sync
+    currentAgentState = 'EXECUTING';
+    broadcast({ type: 'status', data: { connectionStatus, deviceIp, currentAgentState } });
+    postStateToAndroidXR('EXECUTING', '', [], '[Agent] Mapping worktree structures...');
+    await sleep(1000);
     addLog(`[Loop Stage 2/5] Creating simulated agent worktree...`, 'agent');
     
     // Ensure simulated-agent-worktree directory exists
@@ -201,6 +214,31 @@ async function runAgentLoop(spec) {
       fs.mkdirSync(worktreeDir, { recursive: true });
     }
 
+    // Stage 3: Remote Interactive Input
+    addLog(`[Loop Stage 3/5] Awaiting waveguide HUD input choices...`, 'agent');
+    currentAgentState = 'AWAITING_INPUT';
+    const promptMessage = `Choose configuration footprint for ${nodeType}:`;
+    const inputOptions = ["1-Ch (Dimmer)", "3-Ch (RGB Direct)", "4-Ch (RGBA Dynamic)"];
+    
+    // Broadcast state to dashboard and glasses
+    broadcast({ 
+      type: 'status', 
+      data: { connectionStatus, deviceIp, currentAgentState, prompt: promptMessage, options: inputOptions } 
+    });
+    postStateToAndroidXR('AWAITING_INPUT', promptMessage, inputOptions, '[Agent] Awaiting waveguide HUD response...');
+
+    // Pause thread execution until promise is resolved by API call
+    const selectedOption = await new Promise((resolve) => {
+      pendingInputPromise = resolve;
+    });
+
+    // Resumed execution
+    currentAgentState = 'EXECUTING';
+    broadcast({ type: 'status', data: { connectionStatus, deviceIp, currentAgentState } });
+    addLog(`Received user option input: "${selectedOption}"`, 'success');
+    postStateToAndroidXR('EXECUTING', '', [], `[Agent] Option locked: ${selectedOption}`);
+    
+    // Write out code using selectedOption parameter
     const filePath = path.join(worktreeDir, `${nodeType}.kt`);
     const constraintsComments = constraints.map(c => ` * - ${c}`).join('\n');
     
@@ -213,6 +251,7 @@ import java.util.UUID
  * --------------------------------------------------
  * Physical Anchor Link: ${anchorId}
  * Loop Skill Template: ${targetSkill}
+ * Applied Configuration: ${selectedOption}
  * Generated: ${new Date().toISOString()}
  * 
  * Verified Architectural Constraints:
@@ -220,54 +259,58 @@ ${constraintsComments}
  */
 class ${nodeType} {
     private val componentId = UUID.randomUUID()
+    private val channelFootprint = "${selectedOption}"
     
     init {
-        println("${nodeType} spatial node activated.")
-        // Applied: ${targetSkill} constraints
+        println("${nodeType} spatial node activated with configuration: $channelFootprint")
     }
     
     fun processSpatialIntent() {
-        // Simulating logic matching spatial telemetry inputs
-        println("Processing telemetry for anchor ${anchorId}")
+        println("Processing telemetry for anchor ${anchorId} with footprint: $channelFootprint")
     }
 }
 `;
 
     fs.writeFileSync(filePath, kotlinCode, 'utf8');
     addLog(`Generated Kotlin class file: simulated-agent-worktree/${nodeType}.kt`, 'success');
-    postLogToAndroidXR(`[Agent] Generated ${nodeType}.kt file`);
+    postStateToAndroidXR('EXECUTING', '', [], `[Agent] Written: ${nodeType}.kt`);
 
-    // Stage 3: Verification & Local Compile
-    await sleep(1500);
-    addLog(`[Loop Stage 3/5] Starting compilation & verification check...`, 'agent');
+    // Stage 4: Verification & Local Compile
+    await sleep(1200);
+    addLog(`[Loop Stage 4/5] Starting compilation & verification check...`, 'agent');
     addLog(`> Running build syntax analysis...`, 'info');
     await sleep(1000);
     
-    // Output simulated compiler warnings / lines
     addLog(`[compiler] Parsing 1 Kotlin file...`, 'info');
-    addLog(`[compiler] Checking symbol linkages for spatial contexts...`, 'info');
+    addLog(`[compiler] Checking symbol linkages for footprint config "${selectedOption}"...`, 'info');
     await sleep(800);
     addLog(`[compiler] Code syntactically valid. Linkages complete.`, 'success');
-    postLogToAndroidXR(`[Agent] Compiled successfully`);
+    postStateToAndroidXR('EXECUTING', '', [], '[Agent] Class verification complete.');
 
-    // Stage 4: Run Tests
+    // Stage 5: Run Tests & Closed Loop
     await sleep(1200);
-    addLog(`[Loop Stage 4/5] Executing constraint validation tests...`, 'agent');
+    addLog(`[Loop Stage 5/5] Executing constraint validation tests...`, 'agent');
     addLog(`> Running check: verifySpatialTelemetryFoldsIntoValidMcpSpecification...`, 'info');
     await sleep(1000);
-    addLog(`[TEST RUNNER] Found 1 test scenario matching loop constraints.`, 'info');
     addLog(`[TEST RUNNER] SUCCESS: verifySpatialTelemetryFoldsIntoValidMcpSpecification passed (34ms)`, 'success');
-    postLogToAndroidXR(`[Agent] Verification checks PASSED`);
-
-    // Stage 5: Closing Loop
-    await sleep(1200);
-    addLog(`[Loop Stage 5/5] Synthesizing state feedback...`, 'agent');
+    
+    currentAgentState = 'SUCCESS';
+    broadcast({ type: 'status', data: { connectionStatus, deviceIp, currentAgentState } });
+    postStateToAndroidXR('SUCCESS', '', [], '[Agent] Strange loop closed successfully.');
     addLog(`Closed loop complete. Code successfully updated, compiled, and verified.`, 'success');
-    postLogToAndroidXR(`[Agent] Strange Loop Closed - Active`);
+
+    // Return to IDLE after a short pause
+    await sleep(3000);
+    currentAgentState = 'IDLE';
+    broadcast({ type: 'status', data: { connectionStatus, deviceIp, currentAgentState } });
+    postStateToAndroidXR('IDLE', '', [], '');
+    addLog(`Agent loop returned to IDLE.`, 'system');
 
   } catch (error) {
+    currentAgentState = 'IDLE';
+    broadcast({ type: 'status', data: { connectionStatus, deviceIp, currentAgentState } });
     addLog(`Error inside Agent Loop execution: ${error.message}`, 'error');
-    postLogToAndroidXR(`[Agent] FAILED: ${error.message}`);
+    postStateToAndroidXR('IDLE', '', [], `[Agent] FAILED: ${error.message}`);
   }
 }
 
@@ -278,6 +321,7 @@ app.get('/api/state', (req, res) => {
   res.json({
     deviceIp,
     connectionStatus,
+    currentAgentState,
     activeIntent,
     terminalLogs
   });
@@ -292,7 +336,24 @@ app.post('/api/config', (req, res) => {
   deviceIp = ip;
   addLog(`Configured targeting IP address: ${deviceIp}`, 'system');
   connectToAndroidXR();
-  res.json({ success: true, deviceIp, connectionStatus });
+  res.json({ success: true, deviceIp, connectionStatus, currentAgentState });
+});
+
+// Ingest interactive input from the XR HUD or local web override
+app.post('/api/agent-input', (req, res) => {
+  const { selectedOption } = req.body;
+  if (!selectedOption) {
+    return res.status(400).json({ error: 'selectedOption is required' });
+  }
+
+  if (pendingInputPromise) {
+    pendingInputPromise(selectedOption);
+    pendingInputPromise = null;
+    addLog(`Inbound interactive selection received: "${selectedOption}"`, 'system');
+    res.json({ success: true });
+  } else {
+    res.status(400).json({ error: 'No agent loop is currently awaiting input' });
+  }
 });
 
 // Trigger a mock specification to run agent loop offline
@@ -330,7 +391,10 @@ app.get('/api/events', (req, res) => {
     'Connection': 'keep-alive'
   });
 
-  res.write(`data: ${JSON.stringify({ type: 'init', data: { deviceIp, connectionStatus, activeIntent, terminalLogs } })}\n\n`);
+  res.write(`data: ${JSON.stringify({ 
+    type: 'init', 
+    data: { deviceIp, connectionStatus, currentAgentState, activeIntent, terminalLogs } 
+  })}\n\n`);
 
   sseClients.push(res);
 

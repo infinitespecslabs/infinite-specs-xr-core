@@ -1,4 +1,4 @@
-// 🌀 client.js — Frontend dashboard logic and events
+// 🌀 client.js — Terminal Mode frontend dashboard controller
 
 const statusBadge = document.getElementById('status-badge');
 const statusText = document.getElementById('status-text');
@@ -15,7 +15,10 @@ const nodeCodebase = document.getElementById('node-codebase');
 const topologyDiagram = document.getElementById('topology-diagram');
 const loopStateIndicator = document.getElementById('loop-state-indicator');
 
-// Connect to local Node server SSE endpoint for updates
+const interactivePromptCard = document.getElementById('interactive-prompt-card');
+const promptMessageText = document.getElementById('prompt-message-text');
+const promptOptionsContainer = document.getElementById('prompt-options-container');
+
 let eventSource = null;
 
 function connectSSE() {
@@ -36,7 +39,7 @@ function connectSSE() {
 
   eventSource.onerror = (err) => {
     console.error("SSE connection error:", err);
-    updateStatus('disconnected', 'localhost');
+    updateStatus('disconnected', 'localhost', 'OFFLINE');
   };
 }
 
@@ -45,9 +48,8 @@ function handleServerEvent(event) {
 
   switch (type) {
     case 'init':
-      // Setup initial dashboard state
       deviceIpInput.value = data.deviceIp || 'localhost';
-      updateStatus(data.connectionStatus, data.deviceIp);
+      updateStatus(data.connectionStatus, data.deviceIp, data.currentAgentState);
       updateSpecification(data.activeIntent);
       clearLogs();
       if (data.terminalLogs) {
@@ -56,7 +58,7 @@ function handleServerEvent(event) {
       break;
 
     case 'status':
-      updateStatus(data.connectionStatus, data.deviceIp);
+      updateStatus(data.connectionStatus, data.deviceIp, data.currentAgentState, data.prompt, data.options);
       break;
 
     case 'specification':
@@ -72,26 +74,126 @@ function handleServerEvent(event) {
   }
 }
 
-// Update status badge UI and topology states
-function updateStatus(status, ip) {
-  // Reset classes
+// Update connectivity status badge, and sync current agent state
+function updateStatus(status, ip, agentState, prompt = '', options = []) {
   statusBadge.className = 'status-indicator-badge';
-  statusBadge.classList.add(status);
-  statusText.textContent = status.toUpperCase();
-
-  if (status === 'connected') {
-    nodeObserver.classList.add('active');
-    nodeAgent.classList.add('active');
+  
+  // Set badge layout style based on connectivity or agent state
+  if (agentState === 'AWAITING_INPUT') {
+    statusBadge.classList.add('connecting'); // Amber warning color
+    statusText.textContent = `AWAITING INPUT`;
+  } else if (agentState === 'THINKING' || agentState === 'EXECUTING') {
+    statusBadge.classList.add('connected'); // Green active color
+    statusText.textContent = agentState;
+  } else if (status === 'connected') {
+    statusBadge.classList.add('connected');
+    statusText.textContent = `PAIRED`;
   } else if (status === 'connecting') {
-    nodeObserver.classList.add('active');
-    nodeAgent.classList.remove('active');
+    statusBadge.classList.add('connecting');
+    statusText.textContent = `CONNECTING`;
   } else {
-    nodeObserver.classList.remove('active');
-    nodeAgent.classList.remove('active');
+    statusBadge.classList.add('disconnected');
+    statusText.textContent = `DISCONNECTED`;
+  }
+
+  // Manage interactive inputs card visibility
+  if (agentState === 'AWAITING_INPUT' && options && options.length > 0) {
+    showPromptOverlay(prompt, options);
+  } else {
+    hidePromptOverlay();
+  }
+
+  // Manage node activations
+  updateNodeTopology(agentState, status);
+}
+
+function updateNodeTopology(agentState, connStatus) {
+  // Clear classes
+  nodeObserver.classList.remove('active');
+  nodeAgent.classList.remove('active');
+  nodeCodebase.classList.remove('active');
+  topologyDiagram.classList.remove('active');
+
+  const isConnected = (connStatus === 'connected');
+
+  switch (agentState) {
+    case 'THINKING':
+      topologyDiagram.classList.add('active');
+      loopStateIndicator.querySelector('span').textContent = 'INGESTING SPECTRA';
+      nodeObserver.classList.add('active');
+      nodeAgent.classList.add('active');
+      break;
+      
+    case 'EXECUTING':
+      topologyDiagram.classList.add('active');
+      loopStateIndicator.querySelector('span').textContent = 'COMPILING CODE';
+      nodeAgent.classList.add('active');
+      nodeCodebase.classList.add('active');
+      break;
+      
+    case 'AWAITING_INPUT':
+      topologyDiagram.classList.add('active');
+      loopStateIndicator.querySelector('span').textContent = 'AWAITING CHOICE';
+      nodeObserver.classList.add('active');
+      break;
+      
+    case 'SUCCESS':
+      topologyDiagram.classList.add('active');
+      loopStateIndicator.querySelector('span').textContent = 'LOOP SUCCESS';
+      nodeObserver.classList.add('active');
+      nodeAgent.classList.add('active');
+      nodeCodebase.classList.add('active');
+      break;
+
+    case 'IDLE':
+    default:
+      loopStateIndicator.querySelector('span').textContent = isConnected ? 'MIRROR PAIR ACTIVE' : 'LOOP IDLE';
+      if (isConnected) {
+        nodeObserver.classList.add('active');
+        nodeAgent.classList.add('active');
+      }
+      break;
   }
 }
 
-// Update active specification JSON display
+// Display option chips for user selection
+function showPromptOverlay(prompt, options) {
+  promptMessageText.textContent = prompt || "Choose footprint config:";
+  promptOptionsContainer.innerHTML = '';
+
+  options.forEach(option => {
+    const chip = document.createElement('button');
+    chip.className = 'prompt-option-chip';
+    chip.textContent = option;
+    chip.addEventListener('click', () => submitOptionInput(option));
+    promptOptionsContainer.appendChild(chip);
+  });
+
+  interactivePromptCard.classList.remove('hidden');
+}
+
+function hidePromptOverlay() {
+  interactivePromptCard.classList.add('hidden');
+}
+
+// Submit option select back to Macbook Agent
+async function submitOptionInput(option) {
+  hidePromptOverlay();
+  try {
+    const res = await fetch('/api/agent-input', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ selectedOption: option })
+    });
+    if (!res.ok) throw new Error("Input submission failed");
+    console.log(`Option "${option}" submitted successfully`);
+  } catch (err) {
+    console.error("Error submitting user input:", err);
+  }
+}
+
 function updateSpecification(spec) {
   if (!spec) {
     jsonDisplay.textContent = JSON.stringify({
@@ -104,12 +206,10 @@ function updateSpecification(spec) {
   jsonDisplay.textContent = JSON.stringify(spec, null, 2);
 }
 
-// Clear local terminal logs
 function clearLogs() {
   terminalBody.innerHTML = '';
 }
 
-// Append log message to terminal UI
 function appendLog(log) {
   const row = document.createElement('div');
   row.className = `terminal-row ${log.type}-row`;
@@ -126,53 +226,10 @@ function appendLog(log) {
   row.appendChild(txt);
   terminalBody.appendChild(row);
 
-  // Auto-scroll to bottom of terminal
   terminalBody.scrollTop = terminalBody.scrollHeight;
-
-  // Dynamically animate the topology nodes depending on current log stages
-  animateTopologyStages(log.text);
 }
 
-// Animates elements of the diagram based on output messages
-function animateTopologyStages(logText) {
-  if (logText.includes('Ingesting')) {
-    topologyDiagram.classList.add('active');
-    loopStateIndicator.querySelector('span').textContent = 'INGESTING INTENT';
-    nodeObserver.classList.add('active');
-    nodeAgent.classList.remove('active');
-    nodeCodebase.classList.remove('active');
-  } else if (logText.includes('Creating simulated agent worktree')) {
-    loopStateIndicator.querySelector('span').textContent = 'SYNCING WORKTREE';
-    nodeAgent.classList.add('active');
-    nodeObserver.classList.remove('active');
-  } else if (logText.includes('Generated Kotlin class file')) {
-    nodeCodebase.classList.add('active');
-  } else if (logText.includes('Starting compilation')) {
-    loopStateIndicator.querySelector('span').textContent = 'COMPILING CODE';
-    nodeAgent.classList.add('active');
-    nodeCodebase.classList.add('active');
-  } else if (logText.includes('constraints PASSED') || logText.includes('test scenario matching')) {
-    loopStateIndicator.querySelector('span').textContent = 'VERIFYING TESTS';
-    nodeObserver.classList.add('active');
-    nodeCodebase.classList.add('active');
-  } else if (logText.includes('Loop complete') || logText.includes('Closed Loop')) {
-    loopStateIndicator.querySelector('span').textContent = 'LOOP CLOSED';
-    nodeObserver.classList.add('active');
-    nodeAgent.classList.add('active');
-    nodeCodebase.classList.add('active');
-    
-    // Fade topology activity back down after a delay
-    setTimeout(() => {
-      topologyDiagram.classList.remove('active');
-      loopStateIndicator.querySelector('span').textContent = 'LOOP IDLE';
-      // Reset back to connection default state
-      const isConnected = statusBadge.classList.contains('connected');
-      updateStatus(isConnected ? 'connected' : 'disconnected', deviceIpInput.value);
-    }, 4000);
-  }
-}
-
-// Setup Event Listeners
+// Event Listeners
 configForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const ip = deviceIpInput.value.trim();
@@ -187,7 +244,6 @@ configForm.addEventListener('submit', async (e) => {
     });
     
     if (!res.ok) throw new Error("Failed to update config");
-    console.log("Updated device IP successfully");
   } catch (err) {
     console.error("Error setting configuration:", err);
   }
@@ -212,7 +268,6 @@ mockForm.addEventListener('submit', async (e) => {
     });
     
     if (!res.ok) throw new Error("Mock trigger failed");
-    console.log("Mock specification triggered successfully");
   } catch (err) {
     console.error("Error running mock trigger:", err);
   }
@@ -220,5 +275,4 @@ mockForm.addEventListener('submit', async (e) => {
 
 clearLogsBtn.addEventListener('click', clearLogs);
 
-// Initialize SSE connection on load
 connectSSE();
