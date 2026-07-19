@@ -269,8 +269,8 @@ class McpSpecificationBridge {
                 if (response.status.value == 200) {
                     val responseText = response.bodyAsText()
                     Log.d("McpSpecBridge", "Sessions response: $responseText")
-                    val parsed = jsonParser.decodeFromString<SessionListResponse>(responseText)
-                    _sessionsFlow.value = parsed.sessions
+                    val parsed = jsonParser.decodeFromString<List<SessionInfo>>(responseText)
+                    _sessionsFlow.value = parsed
                 } else {
                     Log.e("McpSpecBridge", "Session fetch failed: HTTP ${response.status.value}")
                 }
