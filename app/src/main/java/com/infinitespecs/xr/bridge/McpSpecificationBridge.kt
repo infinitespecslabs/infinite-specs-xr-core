@@ -11,6 +11,8 @@ import io.ktor.client.request.setBody
 import io.ktor.client.request.prepareGet
 import io.ktor.client.statement.bodyAsText
 import io.ktor.client.statement.bodyAsChannel
+import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.timeout
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
@@ -44,6 +46,7 @@ class McpSpecificationBridge {
                 coerceInputValues = true
             })
         }
+        install(HttpTimeout)
     }
 
     private val jsonParser = Json {
@@ -111,6 +114,10 @@ class McpSpecificationBridge {
                 
                 client.prepareGet(url) {
                     header("Authorization", "Bearer $activeToken")
+                    timeout {
+                        requestTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
+                        socketTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
+                    }
                 }.execute { response ->
                     if (response.status.value == 200) {
                         _connectionState.value = "CONNECTED"
