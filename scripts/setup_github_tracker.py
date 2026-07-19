@@ -148,6 +148,12 @@ Investigate and design a clean-room implementation of the workstation host daemo
 
 print("🚀 Starting creation of GitHub issues for Even Terminal Android XR Port...")
 
+# Pre-create labels to avoid errors
+print("Creating labels on GitHub if they don't exist...")
+labels_to_create = ["EvenTerminal", "Phase-1", "Phase-2", "Phase-3", "Phase-4", "Phase-5", "Phase-6", "Phase-7"]
+for label in labels_to_create:
+    subprocess.run(["gh", "label", "create", label, "--color", "FFB300", "--description", f"EvenTerminal XR {label}"], capture_output=True)
+
 for issue in issues:
     print(f"Creating issue: {issue['title']}...")
     

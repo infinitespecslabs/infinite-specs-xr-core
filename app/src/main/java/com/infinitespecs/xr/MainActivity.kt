@@ -42,6 +42,8 @@ import androidx.xr.runtime.math.Vector3
 import com.infinitespecs.xr.bridge.McpSpecificationBridge
 import com.infinitespecs.xr.bridge.McpSpecificationBridge.AgentStatePayload
 import com.infinitespecs.xr.perception.SpatialIntentParser
+import com.infinitespecs.xr.perception.SpeechTranscriptionEngine
+import com.infinitespecs.xr.perception.LocalAndroidSpeechEngine
 import com.infinitespecs.xr.ui.InfiniteSpecsTerminalHudPanel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -63,12 +65,16 @@ class MainActivity : ComponentActivity() {
 
     private val parser = SpatialIntentParser()
     private val bridge = McpSpecificationBridge()
+    private lateinit var speechEngine: SpeechTranscriptionEngine
 
     // ── UI state ─────────────────────────────────────────────────────────────
 
     private val _agentState = MutableStateFlow("OFFLINE")
     private val _inputPrompt = MutableStateFlow("")
     private val _inputOptions = MutableStateFlow<List<String>>(emptyList())
+    private val _inputDetail = MutableStateFlow("")
+    private val _isListening = MutableStateFlow(false)
+    private val _viewMode = MutableStateFlow("SPACE")
     private val _logs = MutableStateFlow<List<String>>(emptyList())
 
     private var session: Session? = null
@@ -194,37 +200,38 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * Submits user choice back to the Macbook agent loop.
-     */
     private fun submitAgentInput(selectedOption: String) {
         _logs.value = (_logs.value + "Submitting choice: $selectedOption").takeLast(5)
-        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            try {
-                val hostIp = McpSpecificationBridge.connectedHostIp
-                val url = java.net.URL("http://$hostIp:3000/api/agent-input")
-                val conn = url.openConnection() as java.net.HttpURLConnection
-                conn.requestMethod = "POST"
-                conn.doOutput = true
-                conn.setRequestProperty("Content-Type", "application/json")
-                
-                val jsonPayload = "{\"selectedOption\":\"$selectedOption\"}"
-                conn.outputStream.use { os ->
-                    os.write(jsonPayload.toByteArray())
-                }
-                
-                val responseCode = conn.responseCode
-                if (responseCode == 200) {
-                    _logs.value = (_logs.value + "Workstation acknowledged choice").takeLast(5)
-                } else {
-                    _logs.value = (_logs.value + "Workstation error: $responseCode").takeLast(5)
-                }
-                conn.disconnect()
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Failed to submit agent input", e)
-                _logs.value = (_logs.value + "Input delivery failed: ${e.message}").takeLast(5)
-            }
+        if (bridge.lastPermissionRequest != null) {
+            bridge.submitPermissionResponse(selectedOption)
+        } else if (bridge.lastQuestionRequest != null) {
+            bridge.submitQuestionResponse(selectedOption)
         }
+    }
+
+    private fun startVoiceDictation() {
+        _isListening.value = true
+        speechEngine.startListening(
+            onResult = { text ->
+                _isListening.value = false
+                if (text.isNotEmpty()) {
+                    if (bridge.lastQuestionRequest != null) {
+                        bridge.submitQuestionResponse(text)
+                    } else {
+                        bridge.submitPrompt(text)
+                    }
+                }
+            },
+            onError = { err ->
+                _isListening.value = false
+                _logs.value = (_logs.value + "STT Error: $err").takeLast(5)
+            }
+        )
+    }
+
+    private fun stopVoiceDictation() {
+        speechEngine.stopListening()
+        _isListening.value = false
     }
 
     private fun Float.format(digits: Int) = "%.${digits}f".format(this)
@@ -238,18 +245,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        speechEngine = LocalAndroidSpeechEngine(this)
+
         // Start the MCP daemon server
         bridge.start()
         _agentState.value = "IDLE"
 
-        // Wire up the bridge output stream to update the UI State
-        bridge.outboundSpecificationStream
-            .onEach {
-                _agentState.value = "THINKING"
-                _inputPrompt.value = ""
-                _inputOptions.value = emptyList()
-            }
-            .launchIn(lifecycleScope)
+
 
         // Listen for inbound state stream from external agents
         bridge.inboundStateStream
@@ -257,6 +259,7 @@ class MainActivity : ComponentActivity() {
                 _agentState.value = payload.state
                 _inputPrompt.value = payload.prompt
                 _inputOptions.value = payload.options
+                _inputDetail.value = payload.detail
                 if (payload.log.isNotEmpty()) {
                     _logs.value = (_logs.value + payload.log).takeLast(5)
                 }
@@ -297,25 +300,68 @@ class MainActivity : ComponentActivity() {
 
             MaterialTheme {
                 Subspace {
-                    SpatialPanel(
-                        modifier = SubspaceModifier
-                            .width(520.dp)
-                            .height(380.dp)
-                            .transformingMovable(),
-                    ) {
                         val agentState by _agentState.collectAsState()
                         val prompt by _inputPrompt.collectAsState()
                         val options by _inputOptions.collectAsState()
+                        val detail by _inputDetail.collectAsState()
+                        val isListening by _isListening.collectAsState()
+                        val viewMode by _viewMode.collectAsState()
                         val logs by _logs.collectAsState()
-                        InfiniteSpecsTerminalHudPanel(
-                            agentState = agentState,
-                            prompt = prompt,
-                            options = options,
-                            logs = logs,
-                            onOptionSelected = { option -> submitAgentInput(option) },
-                            onTrigger = { triggerPerceptionPipeline() }
-                        )
-                    }
+                        val connectionState by bridge.connectionState.collectAsState()
+                        val sessions by bridge.sessionsFlow.collectAsState()
+
+                        val panelModifier = SubspaceModifier
+                            .width(520.dp)
+                            .height(380.dp)
+                            .let { modifier ->
+                                if (viewMode == "SPACE") {
+                                    modifier.transformingMovable()
+                                } else {
+                                    modifier
+                                }
+                            }
+
+                        SpatialPanel(
+                            modifier = panelModifier,
+                        ) {
+                            InfiniteSpecsTerminalHudPanel(
+                                agentState = agentState,
+                                prompt = prompt,
+                                detail = detail,
+                                options = options,
+                                logs = logs,
+                                connectionState = connectionState,
+                                sessions = sessions,
+                                activeSessionId = bridge.currentSessionId,
+                                isListening = isListening,
+                                viewMode = viewMode,
+                                onViewModeToggle = {
+                                    _viewMode.value = if (viewMode == "SPACE") "HUD" else "SPACE"
+                                },
+                                onStartDictation = { startVoiceDictation() },
+                                onStopDictation = { stopVoiceDictation() },
+                                onConnect = { host, token ->
+                                    bridge.activeHost = host
+                                    bridge.activeToken = token
+                                    bridge.refreshSessions()
+                                },
+                                onSelectSession = { sessionId ->
+                                    bridge.connectToSession(sessionId)
+                                },
+                                onDisconnect = {
+                                    bridge.disconnect()
+                                    _agentState.value = "IDLE"
+                                },
+                                onInterrupt = {
+                                    bridge.submitInterrupt()
+                                },
+                                onSubmitPrompt = { text ->
+                                    bridge.submitPrompt(text)
+                                },
+                                onOptionSelected = { option -> submitAgentInput(option) },
+                                onTrigger = { triggerPerceptionPipeline() }
+                            )
+                        }
                 }
             }
         }
