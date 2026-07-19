@@ -127,6 +127,22 @@ Build a testing suite to validate all headset UI and connection states without c
 - Verify entire developer loop completes successfully in the Android XR emulator connecting to the mock daemon.
 """,
         "label": "EvenTerminal,Phase-6"
+    },
+    {
+        "title": "feat: [EvenTerminal XR] Workstation Daemon Replacement Experimentation",
+        "body": """### Goal
+Investigate and design a clean-room implementation of the workstation host daemon to remove licensing/legal dependency on `@evenrealities/even-terminal` before official release.
+
+### Requirements
+- Map out the minimal necessary subset of HTTP/SSE endpoints from the `@evenrealities/even-terminal` protocol.
+- Experiment with spawning AI agents (such as Claude Code or Google Antigravity SDK loops) in a custom Node.js/Python server daemon.
+- Maintain compatibility with the Android XR headset client's communication interface.
+- Ensure proper token authentication and workspace boundary isolation.
+
+### Verification
+- Connect the Android XR app to the custom workstation host daemon instead of `even-terminal` and verify full end-to-end telemetry and approval flow works without regressions.
+""",
+        "label": "EvenTerminal,Phase-7"
     }
 ]
 
