@@ -59,6 +59,7 @@ fun InfiniteSpecsTerminalHudPanel(
     logs: List<String> = emptyList(),
     connectionState: String = "DISCONNECTED",
     sessions: List<McpSpecificationBridge.SessionInfo> = emptyList(),
+    sessionsFetched: Boolean = false,
     activeSessionId: String? = null,
     isListening: Boolean = false,
     viewMode: String = "SPACE",
@@ -78,8 +79,8 @@ fun InfiniteSpecsTerminalHudPanel(
     var showSessionSelector by remember { mutableStateOf(false) }
     
     // Automatically transition views based on connection state and session info
-    LaunchedEffect(sessions) {
-        if (sessions.isNotEmpty()) {
+    LaunchedEffect(sessionsFetched) {
+        if (sessionsFetched) {
             showSessionSelector = true
         }
     }
@@ -122,7 +123,7 @@ fun InfiniteSpecsTerminalHudPanel(
             }
             
             // 2. Session Selector View
-            showSessionSelector && sessions.isNotEmpty() -> {
+            showSessionSelector -> {
                 SessionSelectorView(
                     sessions = sessions,
                     connectionState = connectionState,

@@ -315,6 +315,7 @@ class MainActivity : ComponentActivity() {
                         val logs by _logs.collectAsState()
                         val connectionState by bridge.connectionState.collectAsState()
                         val sessions by bridge.sessionsFlow.collectAsState()
+                        val sessionsFetched by bridge.sessionsFetched.collectAsState()
 
                         val panelModifier = SubspaceModifier
                             .width(520.dp)
@@ -338,6 +339,7 @@ class MainActivity : ComponentActivity() {
                                 logs = logs,
                                 connectionState = connectionState,
                                 sessions = sessions,
+                                sessionsFetched = sessionsFetched,
                                 activeSessionId = bridge.currentSessionId,
                                 isListening = isListening,
                                 viewMode = viewMode,

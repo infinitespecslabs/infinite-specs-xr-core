@@ -65,6 +65,9 @@ class McpSpecificationBridge {
     private val _connectionState = MutableStateFlow("DISCONNECTED")
     val connectionState: StateFlow<String> = _connectionState
 
+    private val _sessionsFetched = MutableStateFlow(false)
+    val sessionsFetched: StateFlow<Boolean> = _sessionsFetched
+
     // ── Streams mapped to MainActivity & SpatialPanel ────────────────────────
     private val _inboundLogStream = MutableSharedFlow<String>()
     val inboundLogStream: Flow<String> = _inboundLogStream
@@ -261,6 +264,7 @@ class McpSpecificationBridge {
         currentSessionId = null
         lastPermissionRequest = null
         lastQuestionRequest = null
+        _sessionsFetched.value = false
         _connectionState.value = "DISCONNECTED"
     }
 
@@ -278,6 +282,7 @@ class McpSpecificationBridge {
                     Log.d("McpSpecBridge", "Sessions response: $responseText")
                     val parsed = jsonParser.decodeFromString<List<SessionInfo>>(responseText)
                     _sessionsFlow.value = parsed
+                    _sessionsFetched.value = true
                 } else {
                     Log.e("McpSpecBridge", "Session fetch failed: HTTP ${response.status.value}")
                 }
