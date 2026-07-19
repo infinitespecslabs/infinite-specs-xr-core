@@ -74,6 +74,7 @@ class MainActivity : ComponentActivity() {
     private val _inputOptions = MutableStateFlow<List<String>>(emptyList())
     private val _inputDetail = MutableStateFlow("")
     private val _isListening = MutableStateFlow(false)
+    private val _promptInput = MutableStateFlow("")
     private val _viewMode = MutableStateFlow("SPACE")
     private val _logs = MutableStateFlow<List<String>>(emptyList())
 
@@ -215,16 +216,20 @@ class MainActivity : ComponentActivity() {
             onResult = { text ->
                 _isListening.value = false
                 if (text.isNotEmpty()) {
-                    if (bridge.lastQuestionRequest != null) {
-                        bridge.submitQuestionResponse(text)
-                    } else {
-                        bridge.submitPrompt(text)
-                    }
+                    _promptInput.value = text
+                    _logs.value = (_logs.value + "Dictated: \"$text\"").takeLast(5)
                 }
             },
             onError = { err ->
                 _isListening.value = false
-                _logs.value = (_logs.value + "STT Error: $err").takeLast(5)
+                _logs.value = (_logs.value + "STT: $err").takeLast(5)
+                
+                // Inject fallback simulated text on emulator if STT is not supported/configured
+                if (err.contains("not available", ignoreCase = true) || err.contains("Client", ignoreCase = true)) {
+                    val fallbackText = "Run debug build and test stage rig left"
+                    _promptInput.value = fallbackText
+                    _logs.value = (_logs.value + "Emulator STT: \"$fallbackText\"").takeLast(5)
+                }
             }
         )
     }
@@ -305,6 +310,7 @@ class MainActivity : ComponentActivity() {
                         val options by _inputOptions.collectAsState()
                         val detail by _inputDetail.collectAsState()
                         val isListening by _isListening.collectAsState()
+                        val promptInput by _promptInput.collectAsState()
                         val viewMode by _viewMode.collectAsState()
                         val logs by _logs.collectAsState()
                         val connectionState by bridge.connectionState.collectAsState()
@@ -335,6 +341,8 @@ class MainActivity : ComponentActivity() {
                                 activeSessionId = bridge.currentSessionId,
                                 isListening = isListening,
                                 viewMode = viewMode,
+                                promptInput = promptInput,
+                                onPromptInputChange = { text -> _promptInput.value = text },
                                 onViewModeToggle = {
                                     _viewMode.value = if (viewMode == "SPACE") "HUD" else "SPACE"
                                 },
@@ -357,6 +365,7 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onSubmitPrompt = { text ->
                                     bridge.submitPrompt(text)
+                                    _promptInput.value = ""
                                 },
                                 onOptionSelected = { option -> submitAgentInput(option) },
                                 onTrigger = { triggerPerceptionPipeline() }

@@ -62,6 +62,8 @@ fun InfiniteSpecsTerminalHudPanel(
     activeSessionId: String? = null,
     isListening: Boolean = false,
     viewMode: String = "SPACE",
+    promptInput: String = "",
+    onPromptInputChange: (String) -> Unit = {},
     onViewModeToggle: () -> Unit = {},
     onStartDictation: () -> Unit = {},
     onStopDictation: () -> Unit = {},
@@ -107,6 +109,8 @@ fun InfiniteSpecsTerminalHudPanel(
                     activeSessionId = activeSessionId,
                     isListening = isListening,
                     viewMode = viewMode,
+                    promptInput = promptInput,
+                    onPromptInputChange = onPromptInputChange,
                     onViewModeToggle = onViewModeToggle,
                     onStartDictation = onStartDictation,
                     onStopDictation = onStopDictation,
@@ -344,6 +348,8 @@ private fun ActiveTerminalView(
     activeSessionId: String,
     isListening: Boolean,
     viewMode: String,
+    promptInput: String,
+    onPromptInputChange: (String) -> Unit,
     onViewModeToggle: () -> Unit,
     onStartDictation: () -> Unit,
     onStopDictation: () -> Unit,
@@ -352,8 +358,6 @@ private fun ActiveTerminalView(
     onSubmitPrompt: (String) -> Unit,
     onOptionSelected: (String) -> Unit
 ) {
-    var promptInput by remember { mutableStateOf("") }
-
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.SpaceBetween
@@ -454,7 +458,7 @@ private fun ActiveTerminalView(
                 }
                 BasicTextField(
                     value = promptInput,
-                    onValueChange = { promptInput = it },
+                    onValueChange = onPromptInputChange,
                     textStyle = androidx.compose.ui.text.TextStyle(
                         fontFamily = FontFamily.Monospace,
                         fontSize = 11.sp,
@@ -474,7 +478,6 @@ private fun ActiveTerminalView(
                     .clickable {
                         if (promptInput.isNotEmpty()) {
                             onSubmitPrompt(promptInput)
-                            promptInput = ""
                         }
                     }
                     .padding(horizontal = 12.dp, vertical = 8.dp)
