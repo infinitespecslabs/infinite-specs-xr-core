@@ -6,12 +6,12 @@
 
 [versions]
 # ── Kotlin ─────────────────────────────────────────────────────────────────
-kotlin                    = "2.0.21"
+kotlin                    = "2.2.10"
 kotlinxCoroutines         = "1.9.0"
 kotlinxSerializationJson  = "1.7.3"
 
 # ── Android build tooling ───────────────────────────────────────────────────
-androidGradlePlugin       = "8.13.2"
+androidGradlePlugin       = "9.2.1"
 compileSdk                = "36"
 minSdk                    = "33"        # Android XR minimum
 targetSdk                 = "36"
