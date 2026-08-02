@@ -40,10 +40,10 @@ Bleeding-edge/preview versions are intentional: Kotlin 2.2.10, AGP 9.2.1, Java 1
 - Commit messages: Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, `build:`, scoped variants like `fix(perception):`), descriptive subjects.
 - `local.properties` (gitignored) needs `sdk.dir` and `GOOGLE_AI_API_KEY` (Gemini, injected via `BuildConfig.GOOGLE_AI_API_KEY`) — without it, `SpatialIntentParser` fails at runtime (unit tests mock this out).
 - `android:usesCleartextTraffic="true"` is intentional (local SSE/MCP bridge over LAN), not an oversight — hardening tracked in `ROADMAP.md` Phase 2.
-- `simulated-agent-worktree/` is gitignored scratch output from the `macbook-agent` Node daemon simulator (generated Kotlin files) — not hand-authored source, not a real git worktree despite the name.
+- `simulated-agent-worktree/` is gitignored leftover scratch output from the now-retired `macbook-agent` Node daemon simulator (generated Kotlin files) — not hand-authored source, not a real git worktree despite the name. Safe to ignore/delete if encountered.
 - Avoid reading/grepping the root `.hprof` heap dump or `even-terminal-*.log` files if present — large, gitignored, not source.
 
 ## Non-Gradle tooling (separate from the Android build)
 
-- `macbook-agent/` — standalone Node/Express daemon simulator + dashboard. `cd macbook-agent && npm install && npm start` serves the dashboard at `http://localhost:3000`; needs `adb forward tcp:8080 tcp:8080` for emulator connectivity. Speaks a legacy protocol (port 8080, `/mcp/sse`) unrelated to the real even-terminal contract — slated for retirement per `ROADMAP.md` Phase 1, not a base to build on.
+- `daemon/` — the workstation daemon (TypeScript/Node), replacing the proprietary `even-terminal` package. `cd daemon && npm install && npm run dev` for local development (`npm run build && npm start` for the compiled build). Requires the `claude` CLI installed and authenticated on the host — `@anthropic-ai/claude-agent-sdk` spawns it as a subprocess. Protocol is documented in `docs/SYSTEM_DESIGN.md` §2; that doc is the source of truth, not the code structure. Pinned to `@anthropic-ai/claude-agent-sdk@0.2.141` exactly (not a caret range) — see `docs/SYSTEM_DESIGN.md` §6 before bumping it.
 - `scripts/setup_github_tracker.py` — one-off script that bulk-creates GitHub issues from a hardcoded roadmap list; requires authenticated `gh` CLI. Not part of the normal dev loop.

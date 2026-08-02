@@ -17,12 +17,14 @@ Findings: see `docs/SYSTEM_DESIGN.md` §2, §5, §6.
 
 ---
 
-## Phase 1: Our Own Workstation Daemon ([#10](https://github.com/infinitespecslabs/infinite-specs-xr-core/issues/10))
+## Phase 1: Our Own Workstation Daemon ([#10](https://github.com/infinitespecslabs/infinite-specs-xr-core/issues/10)) ✅
 **Goal**: Replace the dependency on the real npm package with a daemon we ship ourselves.
-- [ ] Implement the REST+SSE contract the Android client already speaks: SSE events (`status`, `text_delta`, `tool_start`, `tool_end`, `permission_request`, `user_question`, `result`) and REST actions (`permission-response`, `question-response`, `interrupt`, `prompt`, `sessions`).
-- [ ] Spawn Claude Code as a child process and translate its output into that event schema.
-- [ ] Real bearer-token pairing flow (QR or manual entry, per `docs/SYSTEM_DESIGN.md` §5.1).
-- [ ] Retire `macbook-agent/server.js` — it speaks an unrelated legacy protocol (port 8080, `/mcp/sse`) from the earlier "Strange Loop" pivot and does not implement even-terminal's actual contract.
+- [x] Implement the REST+SSE contract the Android client already speaks: SSE events (`status`, `text_delta`, `tool_start`, `tool_end`, `permission_request`, `user_question`, `result`) and REST actions (`permission-response`, `question-response`, `interrupt`, `prompt`, `sessions`). Implemented full protocol parity from `docs/SYSTEM_DESIGN.md` §2, not just this subset.
+- [x] Spawn Claude Code as a child process and translate its output into that event schema — via `@anthropic-ai/claude-agent-sdk` directly (same SDK even-terminal itself depends on), not by parsing CLI stdout.
+- [x] Real bearer-token pairing flow (QR or manual entry, per `docs/SYSTEM_DESIGN.md` §5.1).
+- [x] Retire `macbook-agent/server.js` — deleted; replaced by `daemon/`.
+
+Implementation: `daemon/` (TypeScript). Verified end-to-end against real Claude Code sessions on this machine — prompt/resume/queueing, full SSE event sequence, `AskUserQuestion` round-trip, interrupt, and the production build all confirmed working. See `daemon/README.md` for usage.
 
 ---
 
