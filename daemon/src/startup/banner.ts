@@ -12,7 +12,7 @@ export function resolveLanAddress(): string | undefined {
   return undefined;
 }
 
-function truncPath(p: string, max: number): string {
+export function truncPath(p: string, max: number): string {
   return p.length <= max ? p : "..." + p.slice(-(max - 3));
 }
 

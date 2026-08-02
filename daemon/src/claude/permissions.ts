@@ -71,7 +71,10 @@ export function describePermissionSuggestion(
   if (first.type === "setMode" && typeof first.mode === "string") {
     return `Yes, and use ${quoteInline(first.mode)} permission mode ${describeDestination(first.destination)}`;
   }
-  return suggestions?.length ? placeholderText : null;
+  // `first` is truthy here (guarded above), so suggestions always has at
+  // least one entry — this is a genuine fallback for an unrecognized shape,
+  // not the empty-suggestions case (that returns null earlier).
+  return placeholderText;
 }
 
 export function buildPermissionOptions(

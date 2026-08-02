@@ -21,11 +21,9 @@ export interface ClaudeProvider {
 export function createClaudeProvider(emit: (sessionId: string | undefined, msg: SseEvent) => void): ClaudeProvider {
   const sessions = new Map<string, ClaudeSession>();
 
+  // Only ever called from prompt() after confirming sessionId isn't already
+  // in `sessions`, so it always creates fresh — no need to re-check here.
   function makeSession(sessionId: string | undefined): ClaudeSession {
-    if (sessionId) {
-      const existing = sessions.get(sessionId);
-      if (existing) return existing;
-    }
     const session = new ClaudeSession(emit);
     session.onIdReady((sid) => {
       if (!sessions.has(sid)) sessions.set(sid, session);
