@@ -87,6 +87,11 @@ Gemini-based parsing of gaze/voice telemetry into structured intent, carried ove
 - Android Studio Meerkat (2024.3) or later
 - JDK 17+
 
+Building from Android Studio works out of the box, since it runs Gradle with its own bundled JDK. Building from a plain terminal requires `JAVA_HOME` to point at a JDK 17+ — if your system `java` is older, use Android Studio's bundled JBR instead:
+```bash
+JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew assembleDebug
+```
+
 Build application:
 ```bash
 ./gradlew assembleDebug
