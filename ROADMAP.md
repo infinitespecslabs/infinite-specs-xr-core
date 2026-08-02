@@ -6,12 +6,14 @@ The original product depends on the proprietary `@evenrealities/even-terminal` w
 
 ---
 
-## Phase 0: Reverse-Engineer the Real Daemon ([#9](https://github.com/infinitespecslabs/infinite-specs-xr-core/issues/9))
+## Phase 0: Reverse-Engineer the Real Daemon ([#9](https://github.com/infinitespecslabs/infinite-specs-xr-core/issues/9)) ✅
 **Goal**: Fully understand the actual `even-terminal` server before building a replacement.
-- [ ] Install `@evenrealities/even-terminal@latest` locally and read the unpacked source (CLI + server).
-- [ ] Document session lifecycle: how it spawns/manages the Claude Code (and other provider) child processes and captures their output.
-- [ ] Document auth/pairing token issuance and any endpoints not already captured in `docs/SYSTEM_DESIGN.md` (e.g. "start new session," provider switching, session replay semantics).
-- [ ] Diff findings against what `McpSpecificationBridge.kt` already assumes; list protocol gaps.
+- [x] Install `@evenrealities/even-terminal@latest` locally and read the unpacked source (CLI + server).
+- [x] Document session lifecycle: how it spawns/manages the Claude Code (and other provider) child processes and captures their output.
+- [x] Document auth/pairing token issuance and any endpoints not already captured in `docs/SYSTEM_DESIGN.md` (e.g. "start new session," provider switching, session replay semantics).
+- [x] Diff findings against what `McpSpecificationBridge.kt` already assumes; list protocol gaps.
+
+Findings: see `docs/SYSTEM_DESIGN.md` §2, §5, §6.
 
 ---
 
