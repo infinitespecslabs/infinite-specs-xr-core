@@ -6,7 +6,7 @@ The original product depends on the proprietary `@evenrealities/even-terminal` w
 
 ---
 
-## Phase 0: Reverse-Engineer the Real Daemon
+## Phase 0: Reverse-Engineer the Real Daemon ([#9](https://github.com/infinitespecslabs/infinite-specs-xr-core/issues/9))
 **Goal**: Fully understand the actual `even-terminal` server before building a replacement.
 - [ ] Install `@evenrealities/even-terminal@latest` locally and read the unpacked source (CLI + server).
 - [ ] Document session lifecycle: how it spawns/manages the Claude Code (and other provider) child processes and captures their output.
@@ -15,7 +15,7 @@ The original product depends on the proprietary `@evenrealities/even-terminal` w
 
 ---
 
-## Phase 1: Our Own Workstation Daemon
+## Phase 1: Our Own Workstation Daemon ([#10](https://github.com/infinitespecslabs/infinite-specs-xr-core/issues/10))
 **Goal**: Replace the dependency on the real npm package with a daemon we ship ourselves.
 - [ ] Implement the REST+SSE contract the Android client already speaks: SSE events (`status`, `text_delta`, `tool_start`, `tool_end`, `permission_request`, `user_question`, `result`) and REST actions (`permission-response`, `question-response`, `interrupt`, `prompt`, `sessions`).
 - [ ] Spawn Claude Code as a child process and translate its output into that event schema.
@@ -24,7 +24,7 @@ The original product depends on the proprietary `@evenrealities/even-terminal` w
 
 ---
 
-## Phase 2: Security Hardening
+## Phase 2: Security Hardening ([#11](https://github.com/infinitespecslabs/infinite-specs-xr-core/issues/11))
 **Goal**: Move off the development-only network posture used while bootstrapping.
 - [ ] Replace the global `android:usesCleartextTraffic="true"` manifest override with a `network_security_config.xml` scoped to private IP ranges (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`).
 - [ ] Enforce real end-to-end bearer-token auth (no placeholder/empty tokens).
@@ -32,7 +32,7 @@ The original product depends on the proprietary `@evenrealities/even-terminal` w
 
 ---
 
-## Phase 3: Adaptive Presentation Layer
+## Phase 3: Adaptive Presentation Layer ([#12](https://github.com/infinitespecslabs/infinite-specs-xr-core/issues/12))
 **Goal**: Support all three Android XR device classes by abstracting the UI behind a device-capability layer, mirroring the existing `SpeechTranscriptionEngine` pattern.
 - [x] **Display/headset presenter**: spatial HUD using `Subspace`/`SpatialPanel`/`Orbiter`, gaze-highlight + pinch-approve — already built for the standalone headset case.
 - [ ] **Wired glasses presenter**: flattened non-spatial 2D Compose UI (no `SceneCore` dependency) for tethered display-only hardware.
@@ -41,7 +41,7 @@ The original product depends on the proprietary `@evenrealities/even-terminal` w
 
 ---
 
-## Phase 4: Voice Interaction Parity
+## Phase 4: Voice Interaction Parity ([#13](https://github.com/infinitespecslabs/infinite-specs-xr-core/issues/13))
 **Goal**: Make voice the primary input path where there's no display to tap or gaze at.
 - [ ] Implement `LocalAndroidSpeechEngine` (interface already defined in `docs/SYSTEM_DESIGN.md` §3.1) using on-device `SpeechRecognizer`/Gemini Nano.
 - [ ] Hold-to-talk / tap-equivalent gesture parity across device classes (hand pinch, physical button on wired glasses, etc.).
@@ -49,14 +49,14 @@ The original product depends on the proprietary `@evenrealities/even-terminal` w
 
 ---
 
-## Phase 5: Multi-Session UX
+## Phase 5: Multi-Session UX ([#14](https://github.com/infinitespecslabs/infinite-specs-xr-core/issues/14))
 **Goal**: Let a developer monitor multiple concurrent agent sessions, per the original product's core value proposition.
 - [ ] Session list/switcher UI, adapted per device class (visual list vs. audio menu) — backend groundwork (`sessionsFlow`) already exists in `McpSpecificationBridge.kt`.
 - [ ] Persistent pairing: store host + token per paired workstation, auto-reconnect on launch.
 
 ---
 
-## Phase 6: Packaging & Distribution
+## Phase 6: Packaging & Distribution ([#15](https://github.com/infinitespecslabs/infinite-specs-xr-core/issues/15))
 **Goal**: Ship something end users install without ever touching `even-terminal` or knowing it existed.
 - [ ] Bundled installer or first-run pairing flow that installs our daemon on the developer's machine.
 - [ ] Cross-platform daemon support, starting with macOS (matching current `macbook-agent` scope), then Linux/Windows.
@@ -64,7 +64,7 @@ The original product depends on the proprietary `@evenrealities/even-terminal` w
 
 ---
 
-## Phase 7: Release Hardening
+## Phase 7: Release Hardening ([#16](https://github.com/infinitespecslabs/infinite-specs-xr-core/issues/16))
 **Goal**: Production-readiness pass before shipping to real users.
 - [ ] Token rotation and revocation.
 - [ ] Crash reporting / telemetry.
