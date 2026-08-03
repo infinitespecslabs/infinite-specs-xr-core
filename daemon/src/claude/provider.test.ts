@@ -31,18 +31,22 @@ class FakeQuery<T> {
 }
 
 const queryCalls: FakeQuery<unknown>[] = [];
-const queryMock = vi.fn((_params?: unknown) => {
+const queryOptionsCalls: { cwd?: string }[] = [];
+const queryMock = vi.fn((params?: { options?: { cwd?: string } }) => {
   const q = new FakeQuery<unknown>();
   queryCalls.push(q);
+  queryOptionsCalls.push(params?.options ?? {});
   return q;
 });
 const listSessionsMock = vi.fn<(options?: unknown) => Promise<unknown[]>>();
 const getSessionMessagesMock = vi.fn<(sessionId: string) => Promise<unknown[]>>();
+const getSessionInfoMock = vi.fn<(sessionId: string, options?: unknown) => Promise<unknown>>();
 
 vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
-  query: (params: unknown) => queryMock(params),
+  query: (params: { options?: { cwd?: string } }) => queryMock(params),
   listSessions: (options?: unknown) => listSessionsMock(options),
   getSessionMessages: (sessionId: string) => getSessionMessagesMock(sessionId),
+  getSessionInfo: (sessionId: string, options?: unknown) => getSessionInfoMock(sessionId, options),
 }));
 
 const execCustomMock = vi.fn<(command: string) => Promise<{ stdout: string; stderr: string }>>();
@@ -65,9 +69,11 @@ describe("createClaudeProvider", () => {
 
   beforeEach(() => {
     queryCalls.length = 0;
+    queryOptionsCalls.length = 0;
     queryMock.mockClear();
     listSessionsMock.mockReset();
     getSessionMessagesMock.mockReset();
+    getSessionInfoMock.mockReset();
     execCustomMock.mockReset();
     execCustomMock.mockResolvedValue({ stdout: "", stderr: "" });
     emit = vi.fn();
@@ -139,6 +145,67 @@ describe("createClaudeProvider", () => {
       } finally {
         vi.useRealTimers();
       }
+    });
+
+    // Regression test for issue #17: resuming an existing session with no
+    // cwd from the client used to fall back to the daemon's own
+    // process.cwd() instead of the session's actual project directory,
+    // making the SDK's resume fail with "No conversation found".
+    it("looks up the session's stored cwd via getSessionInfo when resuming with no cwd supplied", async () => {
+      getSessionInfoMock.mockResolvedValue({ sessionId: "existing-session", cwd: "/original/project/dir" });
+      const provider = createClaudeProvider(emit);
+
+      await provider.prompt("existing-session", "resume this", undefined);
+
+      expect(getSessionInfoMock).toHaveBeenCalledWith("existing-session", undefined);
+      await latestQuery();
+      const options = queryOptionsCalls[queryOptionsCalls.length - 1];
+      expect(options.cwd).toBe("/original/project/dir");
+    });
+
+    it("does not call getSessionInfo when the client already supplies a cwd", async () => {
+      const provider = createClaudeProvider(emit);
+      await provider.prompt("existing-session", "resume this", "/client/supplied/dir");
+
+      expect(getSessionInfoMock).not.toHaveBeenCalled();
+      await latestQuery();
+      const options = queryOptionsCalls[queryOptionsCalls.length - 1];
+      expect(options.cwd).toBe("/client/supplied/dir");
+    });
+
+    it("does not call getSessionInfo when starting a brand new session", async () => {
+      vi.useFakeTimers();
+      try {
+        const provider = createClaudeProvider(emit);
+        const resultPromise = provider.prompt(undefined, "hello", undefined);
+        await vi.advanceTimersByTimeAsync(10000); // no session id ever arrives; let waitForId's timeout resolve it
+        await resultPromise;
+
+        expect(getSessionInfoMock).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("falls back to the daemon's own cwd if getSessionInfo can't find the session", async () => {
+      getSessionInfoMock.mockResolvedValue(undefined);
+      const provider = createClaudeProvider(emit);
+
+      await provider.prompt("missing-session", "resume this", undefined);
+
+      await latestQuery();
+      const options = queryOptionsCalls[queryOptionsCalls.length - 1];
+      expect(options.cwd).toBe(process.cwd());
+    });
+
+    it("does not let a getSessionInfo failure block starting the session", async () => {
+      getSessionInfoMock.mockRejectedValue(new Error("lookup failed"));
+      const provider = createClaudeProvider(emit);
+
+      await expect(provider.prompt("existing-session", "resume this", undefined)).resolves.toBeDefined();
+      await latestQuery();
+      const options = queryOptionsCalls[queryOptionsCalls.length - 1];
+      expect(options.cwd).toBe(process.cwd());
     });
   });
 

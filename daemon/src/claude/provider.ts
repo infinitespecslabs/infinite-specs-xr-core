@@ -1,6 +1,6 @@
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
-import { getSessionMessages, listSessions } from "@anthropic-ai/claude-agent-sdk";
+import { getSessionInfo, getSessionMessages, listSessions } from "@anthropic-ai/claude-agent-sdk";
 import { ClaudeSession } from "./session.js";
 import type { InfoResponse, SessionInfo, SseEvent } from "../types.js";
 
@@ -36,7 +36,18 @@ export function createClaudeProvider(emit: (sessionId: string | undefined, msg: 
     let session = sessionId ? sessions.get(sessionId) : undefined;
     if (!session) {
       session = makeSession(sessionId);
-      await session.start(sessionId, cwd);
+      // Resuming an existing session with no cwd from the client: without
+      // this, ClaudeSession.start() falls back to the daemon's own
+      // process.cwd(), which almost never matches the session's actual
+      // project directory and makes the SDK's resume fail with
+      // "No conversation found" (see issue #17). Look up the session's real
+      // cwd instead of trusting the (usually absent) client-supplied one.
+      let resolvedCwd = cwd;
+      if (sessionId && !resolvedCwd) {
+        const info = await getSessionInfo(sessionId).catch(() => undefined);
+        resolvedCwd = info?.cwd;
+      }
+      await session.start(sessionId, resolvedCwd);
     }
 
     session.onIdReady((sid) => emit(sid, { type: "user_prompt", text }));
