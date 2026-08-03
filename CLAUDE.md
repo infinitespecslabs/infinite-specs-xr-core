@@ -42,6 +42,7 @@ Bleeding-edge/preview versions are intentional: Kotlin 2.2.10, AGP 9.2.1, Java 1
 - `android:usesCleartextTraffic="true"` is intentional (local SSE/MCP bridge over LAN), not an oversight — hardening tracked in `ROADMAP.md` Phase 2.
 - `simulated-agent-worktree/` is gitignored leftover scratch output from the now-retired `macbook-agent` Node daemon simulator (generated Kotlin files) — not hand-authored source, not a real git worktree despite the name. Safe to ignore/delete if encountered.
 - Avoid reading/grepping the root `.hprof` heap dump or `even-terminal-*.log` files if present — large, gitignored, not source.
+- Live app+daemon interaction can be inspected via `adb logcat` (tag `McpSpecBridge`, package `com.infinitespecs.xr`) against a connected emulator/device. When a bug turns up this way, use the `file-bug` skill (`.claude/skills/file-bug/`) to write it up with the actual log evidence rather than a paraphrase.
 
 ## Non-Gradle tooling (separate from the Android build)
 
