@@ -201,10 +201,18 @@ class MainActivity : ComponentActivity() {
 
     private fun submitAgentInput(selectedOption: String) {
         _logs.value = (_logs.value + "Submitting choice: $selectedOption").takeLast(5)
-        if (bridge.lastPermissionRequest != null) {
-            bridge.submitPermissionResponse(selectedOption)
-        } else if (bridge.lastQuestionRequest != null) {
-            bridge.submitQuestionResponse(selectedOption)
+        when (
+            val action = TerminalInteractionLogic.resolveAgentInputAction(
+                selectedOption = selectedOption,
+                hasPendingPermissionRequest = bridge.lastPermissionRequest != null,
+                hasPendingQuestionRequest = bridge.lastQuestionRequest != null,
+            )
+        ) {
+            is TerminalInteractionLogic.AgentInputAction.SubmitPermission ->
+                bridge.submitPermissionResponse(action.decision)
+            is TerminalInteractionLogic.AgentInputAction.SubmitQuestion ->
+                bridge.submitQuestionResponse(action.answer)
+            TerminalInteractionLogic.AgentInputAction.None -> Unit
         }
     }
 
@@ -223,8 +231,8 @@ class MainActivity : ComponentActivity() {
                 _logs.value = (_logs.value + "STT: $err").takeLast(5)
 
                 // Inject fallback simulated text on emulator if STT is not supported/configured
-                if (err.contains("not available", ignoreCase = true) || err.contains("Client", ignoreCase = true)) {
-                    val fallbackText = "Run debug build and test stage rig left"
+                val fallbackText = TerminalInteractionLogic.resolveSttFallbackText(err)
+                if (fallbackText != null) {
                     _promptInput.value = fallbackText
                     _logs.value = (_logs.value + "Emulator STT: \"$fallbackText\"").takeLast(5)
                 }
