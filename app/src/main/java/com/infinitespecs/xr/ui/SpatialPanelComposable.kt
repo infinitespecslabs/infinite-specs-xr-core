@@ -10,8 +10,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,14 +29,14 @@ import com.infinitespecs.xr.bridge.McpSpecificationBridge
 // ── Colour Palette (Amber Waveguide HUD Theme) ──────────────────────────────
 
 private object HudColors {
-    val Background = Color(0xDC0A0D14)    // 85% opacity near-black for readability
-    val Border = Color(0x33FFB300)        // 20% opacity amber border
-    val BorderActive = Color(0xFFFFB300)  // Solid glowing amber border
-    
-    val TextPrimary = Color(0xFFFFB300)   // Waveguide glowing amber
+    val Background = Color(0xDC0A0D14) // 85% opacity near-black for readability
+    val Border = Color(0x33FFB300) // 20% opacity amber border
+    val BorderActive = Color(0xFFFFB300) // Solid glowing amber border
+
+    val TextPrimary = Color(0xFFFFB300) // Waveguide glowing amber
     val TextSecondary = Color(0xB3FFB300) // 70% opacity amber
-    val TextMuted = Color(0x66FFB300)     // 40% opacity amber
-    
+    val TextMuted = Color(0x66FFB300) // 40% opacity amber
+
     val CardBackground = Color(0x1AFFB300) // 10% opacity amber card background
     val CardBackgroundSelected = Color(0x40FFB300) // 25% opacity selected card
 }
@@ -77,7 +75,7 @@ fun InfiniteSpecsTerminalHudPanel(
     onTrigger: () -> Unit = {},
 ) {
     var showSessionSelector by remember { mutableStateOf(false) }
-    
+
     // Automatically transition views based on connection state and session info
     LaunchedEffect(sessionsFetched) {
         if (sessionsFetched) {
@@ -96,12 +94,12 @@ fun InfiniteSpecsTerminalHudPanel(
             .clip(RoundedCornerShape(12.dp))
             .background(HudColors.Background)
             .border(1.dp, HudColors.Border, RoundedCornerShape(12.dp))
-            .padding(16.dp)
+            .padding(16.dp),
     ) {
         when {
             // 1. Active Terminal View
             connectionState == "CONNECTED" && activeSessionId != null -> {
-                 ActiveTerminalView(
+                ActiveTerminalView(
                     agentState = agentState,
                     prompt = prompt,
                     detail = detail,
@@ -118,10 +116,10 @@ fun InfiniteSpecsTerminalHudPanel(
                     onDisconnect = onDisconnect,
                     onInterrupt = onInterrupt,
                     onSubmitPrompt = onSubmitPrompt,
-                    onOptionSelected = onOptionSelected
+                    onOptionSelected = onOptionSelected,
                 )
             }
-            
+
             // 2. Session Selector View
             showSessionSelector -> {
                 SessionSelectorView(
@@ -131,15 +129,15 @@ fun InfiniteSpecsTerminalHudPanel(
                     onBack = {
                         onDisconnect()
                         showSessionSelector = false
-                    }
+                    },
                 )
             }
-            
+
             // 3. Pairing / Configuration Entry View
             else -> {
                 PairingConfigView(
                     connectionState = connectionState,
-                    onConnect = onConnect
+                    onConnect = onConnect,
                 )
             }
         }
@@ -151,14 +149,14 @@ fun InfiniteSpecsTerminalHudPanel(
 @Composable
 private fun PairingConfigView(
     connectionState: String,
-    onConnect: (String, String) -> Unit
+    onConnect: (String, String) -> Unit,
 ) {
     var host by remember { mutableStateOf("10.0.2.2:3456") }
     var token by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.SpaceBetween
+        verticalArrangement = Arrangement.SpaceBetween,
     ) {
         Column {
             Text(
@@ -166,36 +164,36 @@ private fun PairingConfigView(
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
-                color = HudColors.TextPrimary
+                color = HudColors.TextPrimary,
             )
             Text(
                 text = "Configure connection parameters to your workstation daemon",
                 fontFamily = FontFamily.Monospace,
                 fontSize = 9.sp,
-                color = HudColors.TextMuted
+                color = HudColors.TextMuted,
             )
         }
 
         Column(
             verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)
+            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
         ) {
             HudTextField(
                 value = host,
                 onValueChange = { host = it },
-                label = "Workstation IP / Host"
+                label = "Workstation IP / Host",
             )
             HudTextField(
                 value = token,
                 onValueChange = { token = it },
-                label = "Bearer Token"
+                label = "Bearer Token",
             )
         }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = when (connectionState) {
@@ -205,7 +203,7 @@ private fun PairingConfigView(
                 },
                 fontFamily = FontFamily.Monospace,
                 fontSize = 10.sp,
-                color = if (connectionState == "ERROR") Color.Red else HudColors.TextSecondary
+                color = if (connectionState == "ERROR") Color.Red else HudColors.TextSecondary,
             )
 
             Box(
@@ -214,14 +212,14 @@ private fun PairingConfigView(
                     .background(HudColors.CardBackground)
                     .border(1.dp, HudColors.BorderActive, RoundedCornerShape(6.dp))
                     .clickable { onConnect(host, token) }
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
             ) {
                 Text(
                     text = "FETCH SESSIONS",
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
                     fontSize = 11.sp,
-                    color = HudColors.TextPrimary
+                    color = HudColors.TextPrimary,
                 )
             }
         }
@@ -233,16 +231,16 @@ private fun SessionSelectorView(
     sessions: List<McpSpecificationBridge.SessionInfo>,
     connectionState: String,
     onSelectSession: (String) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.SpaceBetween
+        verticalArrangement = Arrangement.SpaceBetween,
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Column {
                 Text(
@@ -250,13 +248,13 @@ private fun SessionSelectorView(
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
                     fontSize = 13.sp,
-                    color = HudColors.TextPrimary
+                    color = HudColors.TextPrimary,
                 )
                 Text(
                     text = "Found ${sessions.size} active Claude sessions on workstation",
                     fontFamily = FontFamily.Monospace,
                     fontSize = 9.sp,
-                    color = HudColors.TextMuted
+                    color = HudColors.TextMuted,
                 )
             }
             Box(
@@ -264,13 +262,13 @@ private fun SessionSelectorView(
                     .clip(RoundedCornerShape(4.dp))
                     .border(1.dp, HudColors.Border, RoundedCornerShape(4.dp))
                     .clickable { onBack() }
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
             ) {
                 Text(
                     text = "BACK",
                     fontFamily = FontFamily.Monospace,
                     fontSize = 9.sp,
-                    color = HudColors.TextSecondary
+                    color = HudColors.TextSecondary,
                 )
             }
         }
@@ -280,7 +278,7 @@ private fun SessionSelectorView(
         // Session list container
         LazyColumn(
             modifier = Modifier.weight(1f).fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             items(sessions) { session ->
                 Box(
@@ -290,12 +288,12 @@ private fun SessionSelectorView(
                         .background(HudColors.CardBackground)
                         .border(1.dp, HudColors.Border, RoundedCornerShape(6.dp))
                         .clickable { onSelectSession(session.id) }
-                        .padding(10.dp)
+                        .padding(10.dp),
                 ) {
                     Column {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
                             Text(
                                 text = session.title.ifEmpty { "Untitled Session" },
@@ -305,13 +303,13 @@ private fun SessionSelectorView(
                                 color = HudColors.TextPrimary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
                             )
                             Text(
                                 text = "[${session.status ?: "idle"}]",
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 10.sp,
-                                color = HudColors.TextSecondary
+                                color = HudColors.TextSecondary,
                             )
                         }
                         Spacer(modifier = Modifier.height(2.dp))
@@ -321,7 +319,7 @@ private fun SessionSelectorView(
                             fontSize = 8.sp,
                             color = HudColors.TextMuted,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
@@ -334,7 +332,7 @@ private fun SessionSelectorView(
             text = "Status: ${if (connectionState == "CONNECTING") "Connecting to session..." else "Awaiting session selection"}",
             fontFamily = FontFamily.Monospace,
             fontSize = 9.sp,
-            color = HudColors.TextMuted
+            color = HudColors.TextMuted,
         )
     }
 }
@@ -357,17 +355,17 @@ private fun ActiveTerminalView(
     onDisconnect: () -> Unit,
     onInterrupt: () -> Unit,
     onSubmitPrompt: (String) -> Unit,
-    onOptionSelected: (String) -> Unit
+    onOptionSelected: (String) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.SpaceBetween
+        verticalArrangement = Arrangement.SpaceBetween,
     ) {
         // 1. Header Metadata
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Column {
                 Text(
@@ -375,13 +373,13 @@ private fun ActiveTerminalView(
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
-                    color = HudColors.TextPrimary
+                    color = HudColors.TextPrimary,
                 )
                 Text(
                     text = "SESSION: ${activeSessionId.take(12)}... // AGENT: $agentState",
                     fontFamily = FontFamily.Monospace,
                     fontSize = 9.sp,
-                    color = HudColors.TextMuted
+                    color = HudColors.TextMuted,
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -390,13 +388,13 @@ private fun ActiveTerminalView(
                         .clip(RoundedCornerShape(4.dp))
                         .border(1.dp, HudColors.Border, RoundedCornerShape(4.dp))
                         .clickable { onViewModeToggle() }
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
                 ) {
                     Text(
                         text = "MODE: $viewMode",
                         fontFamily = FontFamily.Monospace,
                         fontSize = 9.sp,
-                        color = HudColors.TextSecondary
+                        color = HudColors.TextSecondary,
                     )
                 }
                 Box(
@@ -404,13 +402,13 @@ private fun ActiveTerminalView(
                         .clip(RoundedCornerShape(4.dp))
                         .border(1.dp, HudColors.Border, RoundedCornerShape(4.dp))
                         .clickable { onDisconnect() }
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
                 ) {
                     Text(
                         text = "LEAVE",
                         fontFamily = FontFamily.Monospace,
                         fontSize = 9.sp,
-                        color = HudColors.TextSecondary
+                        color = HudColors.TextSecondary,
                     )
                 }
             }
@@ -420,14 +418,14 @@ private fun ActiveTerminalView(
 
         // 2. Console Workspace Layout
         Box(
-            modifier = Modifier.weight(1f).fillMaxWidth()
+            modifier = Modifier.weight(1f).fillMaxWidth(),
         ) {
             if (agentState == "AWAITING_INPUT" && options.isNotEmpty()) {
                 InteractiveInputCard(
                     prompt = prompt,
                     detail = detail,
                     options = options,
-                    onOptionSelected = onOptionSelected
+                    onOptionSelected = onOptionSelected,
                 )
             } else {
                 TerminalLogsView(logs = logs, agentState = agentState)
@@ -440,21 +438,21 @@ private fun ActiveTerminalView(
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
                     .border(1.dp, HudColors.Border, RoundedCornerShape(6.dp))
-                    .padding(horizontal = 10.dp, vertical = 8.dp)
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
             ) {
                 if (promptInput.isEmpty()) {
                     Text(
                         text = "Type message/instruction...",
                         fontFamily = FontFamily.Monospace,
                         fontSize = 11.sp,
-                        color = HudColors.TextMuted
+                        color = HudColors.TextMuted,
                     )
                 }
                 BasicTextField(
@@ -463,11 +461,11 @@ private fun ActiveTerminalView(
                     textStyle = androidx.compose.ui.text.TextStyle(
                         fontFamily = FontFamily.Monospace,
                         fontSize = 11.sp,
-                        color = HudColors.TextPrimary
+                        color = HudColors.TextPrimary,
                     ),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                     cursorBrush = androidx.compose.ui.graphics.SolidColor(HudColors.TextPrimary),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
 
@@ -481,14 +479,14 @@ private fun ActiveTerminalView(
                             onSubmitPrompt(promptInput)
                         }
                     }
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
             ) {
                 Text(
                     text = "SEND",
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
                     fontSize = 10.sp,
-                    color = HudColors.TextPrimary
+                    color = HudColors.TextPrimary,
                 )
             }
 
@@ -501,14 +499,14 @@ private fun ActiveTerminalView(
                     .clickable {
                         if (isListening) onStopDictation() else onStartDictation()
                     }
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
             ) {
                 Text(
                     text = if (isListening) "LISTENING" else "DICTATE",
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
                     fontSize = 10.sp,
-                    color = if (isListening) Color.Red else HudColors.TextPrimary
+                    color = if (isListening) Color.Red else HudColors.TextPrimary,
                 )
             }
 
@@ -520,14 +518,14 @@ private fun ActiveTerminalView(
                         .background(Color.Red.copy(alpha = 0.2f))
                         .border(1.dp, Color.Red, RoundedCornerShape(6.dp))
                         .clickable { onInterrupt() }
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
                 ) {
                     Text(
                         text = "STOP",
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
                         fontSize = 10.sp,
-                        color = Color.Red
+                        color = Color.Red,
                     )
                 }
             }
@@ -542,14 +540,14 @@ private fun HudTextField(
     value: String,
     onValueChange: (String) -> Unit,
     label: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier) {
         Text(
             text = label.uppercase(),
             fontFamily = FontFamily.Monospace,
             fontSize = 9.sp,
-            color = HudColors.TextSecondary
+            color = HudColors.TextSecondary,
         )
         Spacer(modifier = Modifier.height(4.dp))
         Box(
@@ -557,7 +555,7 @@ private fun HudTextField(
                 .fillMaxWidth()
                 .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
                 .border(1.dp, HudColors.Border, RoundedCornerShape(6.dp))
-                .padding(horizontal = 10.dp, vertical = 8.dp)
+                .padding(horizontal = 10.dp, vertical = 8.dp),
         ) {
             BasicTextField(
                 value = value,
@@ -565,10 +563,10 @@ private fun HudTextField(
                 textStyle = androidx.compose.ui.text.TextStyle(
                     fontFamily = FontFamily.Monospace,
                     fontSize = 12.sp,
-                    color = HudColors.TextPrimary
+                    color = HudColors.TextPrimary,
                 ),
                 cursorBrush = androidx.compose.ui.graphics.SolidColor(HudColors.TextPrimary),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             )
         }
     }
@@ -581,7 +579,7 @@ private fun TerminalLogsView(logs: List<String>, agentState: String) {
             .fillMaxSize()
             .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
             .border(1.dp, HudColors.Border, RoundedCornerShape(6.dp))
-            .padding(10.dp)
+            .padding(10.dp),
     ) {
         if (logs.isEmpty()) {
             Text(
@@ -594,12 +592,12 @@ private fun TerminalLogsView(logs: List<String>, agentState: String) {
                 fontSize = 11.sp,
                 color = HudColors.TextSecondary,
                 modifier = Modifier.align(Alignment.Center),
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
             )
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 items(logs) { log ->
                     Row(modifier = Modifier.fillMaxWidth()) {
@@ -607,13 +605,13 @@ private fun TerminalLogsView(logs: List<String>, agentState: String) {
                             text = "> ",
                             fontFamily = FontFamily.Monospace,
                             fontSize = 10.sp,
-                            color = HudColors.TextMuted
+                            color = HudColors.TextMuted,
                         )
                         Text(
                             text = log,
                             fontFamily = FontFamily.Monospace,
                             fontSize = 10.sp,
-                            color = HudColors.TextSecondary
+                            color = HudColors.TextSecondary,
                         )
                     }
                 }
@@ -627,7 +625,7 @@ private fun InteractiveInputCard(
     prompt: String,
     detail: String,
     options: List<String>,
-    onOptionSelected: (String) -> Unit
+    onOptionSelected: (String) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -635,7 +633,7 @@ private fun InteractiveInputCard(
             .background(HudColors.CardBackground, RoundedCornerShape(8.dp))
             .border(1.dp, HudColors.BorderActive, RoundedCornerShape(8.dp))
             .padding(12.dp),
-        verticalArrangement = Arrangement.SpaceBetween
+        verticalArrangement = Arrangement.SpaceBetween,
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -643,7 +641,7 @@ private fun InteractiveInputCard(
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
                 fontSize = 11.sp,
-                color = HudColors.TextPrimary
+                color = HudColors.TextPrimary,
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
@@ -652,7 +650,7 @@ private fun InteractiveInputCard(
                 fontSize = 11.sp,
                 color = HudColors.TextSecondary,
                 maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
 
             if (detail.isNotEmpty()) {
@@ -663,7 +661,7 @@ private fun InteractiveInputCard(
                         .weight(1f)
                         .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
                         .border(0.5.dp, HudColors.Border, RoundedCornerShape(4.dp))
-                        .padding(6.dp)
+                        .padding(6.dp),
                 ) {
                     val lines = detail.split("\n")
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -678,7 +676,7 @@ private fun InteractiveInputCard(
                                 text = line,
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 9.sp,
-                                color = color
+                                color = color,
                             )
                         }
                     }
@@ -691,7 +689,7 @@ private fun InteractiveInputCard(
         // Options Layout (Horizontal Stack for confirmations, otherwise Vertical)
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             options.forEach { option ->
                 Box(
@@ -702,14 +700,14 @@ private fun InteractiveInputCard(
                         .border(1.dp, HudColors.Border, RoundedCornerShape(6.dp))
                         .clickable { onOptionSelected(option) }
                         .padding(10.dp),
-                    contentAlignment = Alignment.Center
+                    contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = option,
                         fontFamily = FontFamily.Monospace,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = HudColors.TextPrimary
+                        color = HudColors.TextPrimary,
                     )
                 }
             }

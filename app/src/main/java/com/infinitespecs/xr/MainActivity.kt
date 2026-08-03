@@ -38,12 +38,10 @@ import androidx.xr.runtime.DeviceTrackingMode
 import androidx.xr.runtime.PlaneTrackingMode
 import androidx.xr.runtime.Session
 import androidx.xr.runtime.math.Ray
-import androidx.xr.runtime.math.Vector3
 import com.infinitespecs.xr.bridge.McpSpecificationBridge
-import com.infinitespecs.xr.bridge.McpSpecificationBridge.AgentStatePayload
+import com.infinitespecs.xr.perception.LocalAndroidSpeechEngine
 import com.infinitespecs.xr.perception.SpatialIntentParser
 import com.infinitespecs.xr.perception.SpeechTranscriptionEngine
-import com.infinitespecs.xr.perception.LocalAndroidSpeechEngine
 import com.infinitespecs.xr.ui.InfiniteSpecsTerminalHudPanel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -223,14 +221,14 @@ class MainActivity : ComponentActivity() {
             onError = { err ->
                 _isListening.value = false
                 _logs.value = (_logs.value + "STT: $err").takeLast(5)
-                
+
                 // Inject fallback simulated text on emulator if STT is not supported/configured
                 if (err.contains("not available", ignoreCase = true) || err.contains("Client", ignoreCase = true)) {
                     val fallbackText = "Run debug build and test stage rig left"
                     _promptInput.value = fallbackText
                     _logs.value = (_logs.value + "Emulator STT: \"$fallbackText\"").takeLast(5)
                 }
-            }
+            },
         )
     }
 
@@ -255,8 +253,6 @@ class MainActivity : ComponentActivity() {
         // Start the MCP daemon server
         bridge.start()
         _agentState.value = "IDLE"
-
-
 
         // Listen for inbound state stream from external agents
         bridge.inboundStateStream
@@ -305,74 +301,74 @@ class MainActivity : ComponentActivity() {
 
             MaterialTheme {
                 Subspace {
-                        val agentState by _agentState.collectAsState()
-                        val prompt by _inputPrompt.collectAsState()
-                        val options by _inputOptions.collectAsState()
-                        val detail by _inputDetail.collectAsState()
-                        val isListening by _isListening.collectAsState()
-                        val promptInput by _promptInput.collectAsState()
-                        val viewMode by _viewMode.collectAsState()
-                        val logs by _logs.collectAsState()
-                        val connectionState by bridge.connectionState.collectAsState()
-                        val sessions by bridge.sessionsFlow.collectAsState()
-                        val sessionsFetched by bridge.sessionsFetched.collectAsState()
+                    val agentState by _agentState.collectAsState()
+                    val prompt by _inputPrompt.collectAsState()
+                    val options by _inputOptions.collectAsState()
+                    val detail by _inputDetail.collectAsState()
+                    val isListening by _isListening.collectAsState()
+                    val promptInput by _promptInput.collectAsState()
+                    val viewMode by _viewMode.collectAsState()
+                    val logs by _logs.collectAsState()
+                    val connectionState by bridge.connectionState.collectAsState()
+                    val sessions by bridge.sessionsFlow.collectAsState()
+                    val sessionsFetched by bridge.sessionsFetched.collectAsState()
 
-                        val panelModifier = SubspaceModifier
-                            .width(520.dp)
-                            .height(380.dp)
-                            .let { modifier ->
-                                if (viewMode == "SPACE") {
-                                    modifier.transformingMovable()
-                                } else {
-                                    modifier
-                                }
+                    val panelModifier = SubspaceModifier
+                        .width(520.dp)
+                        .height(380.dp)
+                        .let { modifier ->
+                            if (viewMode == "SPACE") {
+                                modifier.transformingMovable()
+                            } else {
+                                modifier
                             }
-
-                        SpatialPanel(
-                            modifier = panelModifier,
-                        ) {
-                            InfiniteSpecsTerminalHudPanel(
-                                agentState = agentState,
-                                prompt = prompt,
-                                detail = detail,
-                                options = options,
-                                logs = logs,
-                                connectionState = connectionState,
-                                sessions = sessions,
-                                sessionsFetched = sessionsFetched,
-                                activeSessionId = bridge.currentSessionId,
-                                isListening = isListening,
-                                viewMode = viewMode,
-                                promptInput = promptInput,
-                                onPromptInputChange = { text -> _promptInput.value = text },
-                                onViewModeToggle = {
-                                    _viewMode.value = if (viewMode == "SPACE") "HUD" else "SPACE"
-                                },
-                                onStartDictation = { startVoiceDictation() },
-                                onStopDictation = { stopVoiceDictation() },
-                                onConnect = { host, token ->
-                                    bridge.activeHost = host
-                                    bridge.activeToken = token
-                                    bridge.refreshSessions()
-                                },
-                                onSelectSession = { sessionId ->
-                                    bridge.connectToSession(sessionId)
-                                },
-                                onDisconnect = {
-                                    bridge.disconnect()
-                                    _agentState.value = "IDLE"
-                                },
-                                onInterrupt = {
-                                    bridge.submitInterrupt()
-                                },
-                                onSubmitPrompt = { text ->
-                                    bridge.submitPrompt(text)
-                                    _promptInput.value = ""
-                                },
-                                onOptionSelected = { option -> submitAgentInput(option) },
-                                onTrigger = { triggerPerceptionPipeline() }
-                            )
                         }
+
+                    SpatialPanel(
+                        modifier = panelModifier,
+                    ) {
+                        InfiniteSpecsTerminalHudPanel(
+                            agentState = agentState,
+                            prompt = prompt,
+                            detail = detail,
+                            options = options,
+                            logs = logs,
+                            connectionState = connectionState,
+                            sessions = sessions,
+                            sessionsFetched = sessionsFetched,
+                            activeSessionId = bridge.currentSessionId,
+                            isListening = isListening,
+                            viewMode = viewMode,
+                            promptInput = promptInput,
+                            onPromptInputChange = { text -> _promptInput.value = text },
+                            onViewModeToggle = {
+                                _viewMode.value = if (viewMode == "SPACE") "HUD" else "SPACE"
+                            },
+                            onStartDictation = { startVoiceDictation() },
+                            onStopDictation = { stopVoiceDictation() },
+                            onConnect = { host, token ->
+                                bridge.activeHost = host
+                                bridge.activeToken = token
+                                bridge.refreshSessions()
+                            },
+                            onSelectSession = { sessionId ->
+                                bridge.connectToSession(sessionId)
+                            },
+                            onDisconnect = {
+                                bridge.disconnect()
+                                _agentState.value = "IDLE"
+                            },
+                            onInterrupt = {
+                                bridge.submitInterrupt()
+                            },
+                            onSubmitPrompt = { text ->
+                                bridge.submitPrompt(text)
+                                _promptInput.value = ""
+                            },
+                            onOptionSelected = { option -> submitAgentInput(option) },
+                            onTrigger = { triggerPerceptionPipeline() },
+                        )
+                    }
                 }
             }
         }

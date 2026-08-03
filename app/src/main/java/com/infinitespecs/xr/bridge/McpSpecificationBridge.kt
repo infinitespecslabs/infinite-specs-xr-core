@@ -3,16 +3,16 @@ package com.infinitespecs.xr.bridge
 import android.util.Log
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.timeout
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
-import io.ktor.client.request.setBody
 import io.ktor.client.request.prepareGet
-import io.ktor.client.statement.bodyAsText
+import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsChannel
-import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.timeout
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
@@ -29,8 +29,6 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import java.io.IOException
 
 /**
  * Connects the Android XR app to a workstation host running even-terminal.
@@ -41,10 +39,12 @@ class McpSpecificationBridge {
     // ── Ktor Client ──────────────────────────────────────────────────────────
     private val client = HttpClient(CIO) {
         install(ContentNegotiation) {
-            json(Json {
-                ignoreUnknownKeys = true
-                coerceInputValues = true
-            })
+            json(
+                Json {
+                    ignoreUnknownKeys = true
+                    coerceInputValues = true
+                },
+            )
         }
         install(HttpTimeout)
     }
@@ -88,7 +88,7 @@ class McpSpecificationBridge {
         val prompt: String = "",
         val options: List<String> = emptyList(),
         val log: String = "",
-        val detail: String = ""
+        val detail: String = "",
     )
 
     fun start() {
@@ -109,12 +109,12 @@ class McpSpecificationBridge {
         disconnect()
         currentSessionId = sessionId
         _connectionState.value = "CONNECTING"
-        
+
         sseJob = coroutineScope.launch {
             try {
                 val url = "http://$activeHost/api/events?sessionId=$sessionId&needReplay=true"
                 Log.d("McpSpecBridge", "Connecting to SSE stream at: $url")
-                
+
                 client.prepareGet(url) {
                     header("Authorization", "Bearer $activeToken")
                     timeout {
@@ -125,7 +125,7 @@ class McpSpecificationBridge {
                     if (response.status.value == 200) {
                         _connectionState.value = "CONNECTED"
                         _inboundLogStream.emit("Session Connected: $sessionId")
-                        
+
                         val channel = response.bodyAsChannel()
                         readSseChannel(channel)
                     } else {
@@ -198,14 +198,14 @@ class McpSpecificationBridge {
                 jsonObject.containsKey("toolName") && jsonObject.containsKey("toolUseId") && jsonObject.containsKey("options") -> {
                     val permission = jsonParser.decodeFromString<PermissionRequestEvent>(jsonStr)
                     lastPermissionRequest = permission
-                    
+
                     _inboundStateStream.emit(
                         AgentStatePayload(
                             state = "AWAITING_INPUT",
                             prompt = permission.description,
                             options = permission.options.map { it.text },
-                            detail = permission.detail
-                        )
+                            detail = permission.detail,
+                        ),
                     )
                 }
 
@@ -213,7 +213,7 @@ class McpSpecificationBridge {
                 jsonObject.containsKey("questions") && jsonObject.containsKey("toolUseId") -> {
                     val question = jsonParser.decodeFromString<UserQuestionEvent>(jsonStr)
                     lastQuestionRequest = question
-                    
+
                     val firstQuestion = question.questions.firstOrNull()
                     val promptText = firstQuestion?.question ?: "Awaiting developer response"
                     val options = firstQuestion?.options?.map { it.label } ?: emptyList()
@@ -222,8 +222,8 @@ class McpSpecificationBridge {
                         AgentStatePayload(
                             state = "AWAITING_INPUT",
                             prompt = promptText,
-                            options = options
-                        )
+                            options = options,
+                        ),
                     )
                 }
 
@@ -234,8 +234,8 @@ class McpSpecificationBridge {
                     _inboundStateStream.emit(
                         AgentStatePayload(
                             state = statusText,
-                            log = "Session complete. Cost: \$${String.format("%.3f", result.costUsd)} (${result.turns} turns)"
-                        )
+                            log = "Session complete. Cost: \$${String.format("%.3f", result.costUsd)} (${result.turns} turns)",
+                        ),
                     )
                     _inboundLogStream.emit("Result: $statusText - ${result.text}")
                 }
@@ -245,17 +245,15 @@ class McpSpecificationBridge {
         }
     }
 
-    private fun mapAgentState(serverState: String): String {
-        return when (serverState) {
-            "idle" -> "IDLE"
-            "busy" -> "THINKING"
-            "think_start" -> "THINKING"
-            "think_end" -> "THINKING"
-            "text_start" -> "THINKING"
-            "text_end" -> "THINKING"
-            "awaiting" -> "AWAITING_INPUT"
-            else -> "PROCESSING"
-        }
+    private fun mapAgentState(serverState: String): String = when (serverState) {
+        "idle" -> "IDLE"
+        "busy" -> "THINKING"
+        "think_start" -> "THINKING"
+        "think_end" -> "THINKING"
+        "text_start" -> "THINKING"
+        "text_end" -> "THINKING"
+        "awaiting" -> "AWAITING_INPUT"
+        else -> "PROCESSING"
     }
 
     fun disconnect() {
@@ -276,7 +274,7 @@ class McpSpecificationBridge {
                 val response = client.get(url) {
                     header("Authorization", "Bearer $activeToken")
                 }
-                
+
                 if (response.status.value == 200) {
                     val responseText = response.bodyAsText().trim()
                     Log.d("McpSpecBridge", "Sessions response: $responseText")
@@ -303,14 +301,11 @@ class McpSpecificationBridge {
     fun submitPermissionResponse(decision: String) {
         val sessionId = currentSessionId ?: return
         val permissionReq = lastPermissionRequest ?: return
-        
-        // Maps decision string to matches ('Yes' -> 'allow', 'No' -> 'deny')
-        val key = when (decision) {
-            "Yes" -> "allow"
-            "No" -> "deny"
-            "allowAlways" -> "allowAlways"
-            else -> decision
-        }
+
+        // The "always allow" option's text is dynamically generated per
+        // request (see docs/SYSTEM_DESIGN.md §2.1), so it can't be matched
+        // literally — look up the key from the original options list instead.
+        val key = permissionReq.options.find { it.text == decision }?.key ?: "deny"
 
         coroutineScope.launch {
             try {
@@ -404,30 +399,30 @@ class McpSpecificationBridge {
         val timestamp: String = "",
         val cwd: String = "",
         val provider: String = "claude",
-        val status: String? = null
+        val status: String? = null,
     )
 
     @Serializable
     data class SessionListResponse(
         val sessions: List<SessionInfo> = emptyList(),
-        val error: String? = null
+        val error: String? = null,
     )
 
     @Serializable
     data class StatusEvent(
         val state: String,
-        val sessionId: String
+        val sessionId: String,
     )
 
     @Serializable
     data class TextDeltaEvent(
-        val text: String
+        val text: String,
     )
 
     @Serializable
     data class ToolStartEvent(
         val name: String,
-        val toolId: String
+        val toolId: String,
     )
 
     @Serializable
@@ -435,12 +430,12 @@ class McpSpecificationBridge {
         val name: String,
         val toolId: String,
         val summary: String = "",
-        val detail: ToolEndDetail? = null
+        val detail: ToolEndDetail? = null,
     )
 
     @Serializable
     data class ToolEndDetail(
-        val output: String = ""
+        val output: String = "",
     )
 
     @Serializable
@@ -449,33 +444,33 @@ class McpSpecificationBridge {
         val description: String = "",
         val detail: String = "",
         val toolUseId: String,
-        val options: List<PermissionOption> = emptyList()
+        val options: List<PermissionOption> = emptyList(),
     )
 
     @Serializable
     data class PermissionOption(
         val text: String,
-        val key: String
+        val key: String,
     )
 
     @Serializable
     data class UserQuestionEvent(
         val questions: List<QuestionItem> = emptyList(),
-        val toolUseId: String
+        val toolUseId: String,
     )
 
     @Serializable
     data class QuestionItem(
         val question: String,
         val header: String = "",
-        val options: List<QuestionOption> = emptyList()
+        val options: List<QuestionOption> = emptyList(),
     )
 
     @Serializable
     data class QuestionOption(
         val label: String,
         val description: String = "",
-        val preview: String = ""
+        val preview: String = "",
     )
 
     @Serializable
@@ -487,34 +482,34 @@ class McpSpecificationBridge {
         val turns: Int = 0,
         val durationMs: Long = 0L,
         val inputTokens: Int = 0,
-        val outputTokens: Int = 0
+        val outputTokens: Int = 0,
     )
 
     @Serializable
     data class PromptRequest(
         val text: String,
         val sessionId: String? = null,
-        val provider: String = "claude"
+        val provider: String = "claude",
     )
 
     @Serializable
     data class PermissionResponse(
         val sessionId: String,
         val provider: String = "claude",
-        val decision: String
+        val decision: String,
     )
 
     @Serializable
     data class QuestionResponse(
         val sessionId: String,
         val provider: String = "claude",
-        val answer: String
+        val answer: String,
     )
 
     @Serializable
     data class InterruptRequest(
         val sessionId: String,
-        val provider: String = "claude"
+        val provider: String = "claude",
     )
 
     companion object {
