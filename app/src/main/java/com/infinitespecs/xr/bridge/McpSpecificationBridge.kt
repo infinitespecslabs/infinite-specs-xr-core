@@ -2,6 +2,7 @@ package com.infinitespecs.xr.bridge
 
 import android.util.Log
 import io.ktor.client.HttpClient
+import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -18,6 +19,7 @@ import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.readUTF8Line
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -33,11 +35,19 @@ import kotlinx.serialization.json.jsonObject
 /**
  * Connects the Android XR app to a workstation host running even-terminal.
  * Subscribes to the server-sent events stream (SSE) and handles tool/agent approval prompts.
+ *
+ * [engine] defaults to the real CIO engine; tests inject Ktor's MockEngine instead.
+ * [dispatcher] defaults to Dispatchers.IO; tests inject a TestDispatcher tied to
+ * their `runTest` scheduler so the fire-and-forget network calls below become
+ * deterministically awaitable instead of racing a real background thread.
  */
-class McpSpecificationBridge {
+class McpSpecificationBridge(
+    engine: HttpClientEngine = CIO.create(),
+    dispatcher: CoroutineDispatcher = Dispatchers.IO,
+) {
 
     // ── Ktor Client ──────────────────────────────────────────────────────────
-    private val client = HttpClient(CIO) {
+    private val client = HttpClient(engine) {
         install(ContentNegotiation) {
             json(
                 Json {
@@ -54,7 +64,7 @@ class McpSpecificationBridge {
         coerceInputValues = true
     }
 
-    private val coroutineScope = CoroutineScope(Dispatchers.IO)
+    private val coroutineScope = CoroutineScope(dispatcher)
     private var sseJob: Job? = null
 
     // ── Settings & State ─────────────────────────────────────────────────────
@@ -105,12 +115,12 @@ class McpSpecificationBridge {
     /**
      * Connect to the selected session's Server-Sent Events stream.
      */
-    fun connectToSession(sessionId: String) {
+    fun connectToSession(sessionId: String): Job {
         disconnect()
         currentSessionId = sessionId
         _connectionState.value = "CONNECTING"
 
-        sseJob = coroutineScope.launch {
+        val job = coroutineScope.launch {
             try {
                 val url = "http://$activeHost/api/events?sessionId=$sessionId&needReplay=true"
                 Log.d("McpSpecBridge", "Connecting to SSE stream at: $url")
@@ -141,6 +151,8 @@ class McpSpecificationBridge {
                 _inboundLogStream.emit("Connection failed: ${e.message}")
             }
         }
+        sseJob = job
+        return job
     }
 
     private suspend fun readSseChannel(channel: ByteReadChannel) {
@@ -158,7 +170,9 @@ class McpSpecificationBridge {
         _connectionState.value = "DISCONNECTED"
     }
 
-    private suspend fun parseAndProcessSsePayload(jsonStr: String) {
+    // internal (not private) so unit tests can drive the SSE discriminator
+    // directly, without a real or mocked network round trip.
+    internal suspend fun parseAndProcessSsePayload(jsonStr: String) {
         try {
             // Raw JSON logs for diagnostics
             Log.d("McpSpecBridge", "SSE Event payload: $jsonStr")
@@ -245,7 +259,7 @@ class McpSpecificationBridge {
         }
     }
 
-    private fun mapAgentState(serverState: String): String = when (serverState) {
+    internal fun mapAgentState(serverState: String): String = when (serverState) {
         "idle" -> "IDLE"
         "busy" -> "THINKING"
         "think_start" -> "THINKING"
@@ -266,48 +280,46 @@ class McpSpecificationBridge {
         _connectionState.value = "DISCONNECTED"
     }
 
-    fun refreshSessions() {
-        coroutineScope.launch {
-            try {
-                val url = "http://$activeHost/api/sessions?provider=claude"
-                Log.d("McpSpecBridge", "Fetching sessions: $url")
-                val response = client.get(url) {
-                    header("Authorization", "Bearer $activeToken")
-                }
-
-                if (response.status.value == 200) {
-                    val responseText = response.bodyAsText().trim()
-                    Log.d("McpSpecBridge", "Sessions response: $responseText")
-                    val sessionsList = if (responseText.startsWith("{")) {
-                        val parsedObj = jsonParser.decodeFromString<SessionListResponse>(responseText)
-                        parsedObj.sessions
-                    } else {
-                        jsonParser.decodeFromString<List<SessionInfo>>(responseText)
-                    }
-                    _sessionsFlow.value = sessionsList
-                    _sessionsFetched.value = true
-                } else {
-                    Log.e("McpSpecBridge", "Session fetch failed: HTTP ${response.status.value}")
-                }
-            } catch (e: Exception) {
-                Log.e("McpSpecBridge", "Failed to refresh sessions", e)
+    fun refreshSessions(): Job = coroutineScope.launch {
+        try {
+            val url = "http://$activeHost/api/sessions?provider=claude"
+            Log.d("McpSpecBridge", "Fetching sessions: $url")
+            val response = client.get(url) {
+                header("Authorization", "Bearer $activeToken")
             }
+
+            if (response.status.value == 200) {
+                val responseText = response.bodyAsText().trim()
+                Log.d("McpSpecBridge", "Sessions response: $responseText")
+                val sessionsList = if (responseText.startsWith("{")) {
+                    val parsedObj = jsonParser.decodeFromString<SessionListResponse>(responseText)
+                    parsedObj.sessions
+                } else {
+                    jsonParser.decodeFromString<List<SessionInfo>>(responseText)
+                }
+                _sessionsFlow.value = sessionsList
+                _sessionsFetched.value = true
+            } else {
+                Log.e("McpSpecBridge", "Session fetch failed: HTTP ${response.status.value}")
+            }
+        } catch (e: Exception) {
+            Log.e("McpSpecBridge", "Failed to refresh sessions", e)
         }
     }
 
     /**
      * Sends user confirmation (decision) for a tool call.
      */
-    fun submitPermissionResponse(decision: String) {
-        val sessionId = currentSessionId ?: return
-        val permissionReq = lastPermissionRequest ?: return
+    fun submitPermissionResponse(decision: String): Job? {
+        val sessionId = currentSessionId ?: return null
+        val permissionReq = lastPermissionRequest ?: return null
 
         // The "always allow" option's text is dynamically generated per
         // request (see docs/SYSTEM_DESIGN.md §2.1), so it can't be matched
         // literally — look up the key from the original options list instead.
         val key = permissionReq.options.find { it.text == decision }?.key ?: "deny"
 
-        coroutineScope.launch {
+        return coroutineScope.launch {
             try {
                 val url = "http://$activeHost/api/permission-response"
                 Log.d("McpSpecBridge", "Submitting permission decision: $key for session: $sessionId")
@@ -327,9 +339,9 @@ class McpSpecificationBridge {
     /**
      * Sends answers to AskUserQuestion queries.
      */
-    fun submitQuestionResponse(answer: String) {
-        val sessionId = currentSessionId ?: return
-        coroutineScope.launch {
+    fun submitQuestionResponse(answer: String): Job? {
+        val sessionId = currentSessionId ?: return null
+        return coroutineScope.launch {
             try {
                 val url = "http://$activeHost/api/question-response"
                 Log.d("McpSpecBridge", "Submitting question answer: $answer for session: $sessionId")
@@ -349,9 +361,9 @@ class McpSpecificationBridge {
     /**
      * Interrupts execution.
      */
-    fun submitInterrupt() {
-        val sessionId = currentSessionId ?: return
-        coroutineScope.launch {
+    fun submitInterrupt(): Job? {
+        val sessionId = currentSessionId ?: return null
+        return coroutineScope.launch {
             try {
                 val url = "http://$activeHost/api/interrupt"
                 Log.d("McpSpecBridge", "Interrupting session: $sessionId")
@@ -369,9 +381,9 @@ class McpSpecificationBridge {
     /**
      * Submits a fresh text prompt to start or run in a session.
      */
-    fun submitPrompt(text: String) {
-        val sessionId = currentSessionId ?: return
-        coroutineScope.launch {
+    fun submitPrompt(text: String): Job? {
+        val sessionId = currentSessionId ?: return null
+        return coroutineScope.launch {
             try {
                 val url = "http://$activeHost/api/prompt"
                 Log.d("McpSpecBridge", "Submitting prompt: '$text' to session: $sessionId")

@@ -20,7 +20,7 @@ Bleeding-edge/preview versions are intentional: Kotlin 2.2.10, AGP 9.2.1, Java 1
 
 - Gradle requires JDK 17+. If the system `java` is older (check `java -version`), prefix Gradle commands with `JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"` (Android Studio's bundled JBR) rather than assuming the build is broken.
 - Build: `./gradlew assembleDebug` — verify this before proposing deep logic changes.
-- Unit tests: `./gradlew :app:test` (JVM-only; single test: `./gradlew :app:test --tests "com.infinitespecs.xr.StrangeLoopTest"`). `StrangeLoopTest.kt` is the primary end-to-end integration test for the closed-loop system.
+- Unit tests: `./gradlew :app:test` (JVM-only). `:app:test` is a lifecycle task and doesn't accept `--tests`; for a single test use the concrete task instead: `./gradlew :app:testDebugUnitTest --tests "com.infinitespecs.xr.perception.SpatialIntentParserTest"`. `StrangeLoopTest.kt` is the primary end-to-end integration test for the closed-loop system; `SpatialIntentParserTest.kt` and `bridge/McpSpecificationBridge*Test.kt` cover edge cases and the SSE/REST protocol respectively.
 - `testOptions.unitTests.isReturnDefaultValues = true` is set because production code touches unstubbed `androidx.xr.*` classes (e.g. `Ray`, `Vector3`) that would otherwise throw in plain JUnit.
 - **Lint/format: `./gradlew spotlessApply` is mandatory before every commit** — never commit without it.
 - ktlint is configured (root `build.gradle.kts`) with several standard rules disabled: `no-wildcard-imports`, `filename`, `function-naming`, `backing-property-naming`, `value-parameter-comment`. Trailing commas are mandatory in multi-line parameter/argument lists.
