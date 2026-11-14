@@ -5,7 +5,7 @@
  * Android XR host activity. Initialises the Jetpack Compose content and
  * connects the perception pipeline to the spatial HUD panel.
  *
- * Android XR Developer Preview 4
+ * Jetpack XR SDK 1.0 (Compose for XR 1.0 beta)
  * See: https://developer.android.com/xr
  */
 
@@ -32,7 +32,7 @@ import androidx.xr.compose.spatial.Subspace
 import androidx.xr.compose.subspace.SpatialPanel
 import androidx.xr.compose.subspace.layout.SubspaceModifier
 import androidx.xr.compose.subspace.layout.height
-import androidx.xr.compose.subspace.layout.transformingMovable
+import androidx.xr.compose.subspace.layout.movable
 import androidx.xr.compose.subspace.layout.width
 import androidx.xr.runtime.DeviceTrackingMode
 import androidx.xr.runtime.PlaneTrackingMode
@@ -116,7 +116,7 @@ class MainActivity : ComponentActivity() {
         val s = session ?: return
 
         val newConfig = s.config.copy(
-            deviceTracking = DeviceTrackingMode.SPATIAL_LAST_KNOWN,
+            deviceTracking = DeviceTrackingMode.SPATIAL,
             planeTracking = if (enablePlanes) {
                 PlaneTrackingMode.HORIZONTAL_AND_VERTICAL
             } else {
@@ -326,7 +326,7 @@ class MainActivity : ComponentActivity() {
                         .height(380.dp)
                         .let { modifier ->
                             if (viewMode == "SPACE") {
-                                modifier.transformingMovable()
+                                modifier.movable()
                             } else {
                                 modifier
                             }

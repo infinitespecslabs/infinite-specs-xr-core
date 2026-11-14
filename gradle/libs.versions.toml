@@ -1,7 +1,7 @@
 ##
 ## libs.versions.toml
 ## Version catalog for infinite-specs-xr-core.
-## Targets Android XR Developer Preview 4 (Jetpack XR SDK).
+## Targets the Jetpack XR SDK 1.0 (Compose for XR 1.0 beta).
 ##
 
 [versions]
@@ -24,11 +24,11 @@ activityCompose           = "1.9.3"
 # ── Jetpack Compose ─────────────────────────────────────────────────────────
 composeBom                = "2024.12.01"
 
-# ── Jetpack XR SDK (Developer Preview 4) ───────────────────────────────────
-xrRuntime                 = "1.0.0-alpha14"
-xrScenecore               = "1.0.0-alpha15"
-xrCompose                 = "1.0.0-alpha14"
-xrArcore                  = "1.0.0-alpha14"
+# ── Jetpack XR SDK 1.0 (Compose for XR still beta) ─────────────────────────
+xrRuntime                 = "1.0.0"
+xrScenecore               = "1.0.0"
+xrCompose                 = "1.0.0-beta02"
+xrArcore                  = "1.0.0"
 
 # ── Ktor (SSE transport) ────────────────────────────────────────────────────
 ktor                      = "2.3.12"
@@ -70,7 +70,7 @@ androidx-compose-ui-tooling        = { group = "androidx.compose.ui",  name = "u
 androidx-compose-ui-tooling-preview= { group = "androidx.compose.ui",  name = "ui-tooling-preview" }
 androidx-compose-material3         = { group = "androidx.compose.material3", name = "material3" }
 
-# ── Jetpack XR SDK (Developer Preview 4) ────────────────────────────────────
+# ── Jetpack XR SDK 1.0 (Compose for XR still beta) ─────────────────────────
 androidx-xr-runtime                = { group = "androidx.xr.runtime",  name = "runtime",                             version.ref = "xrRuntime" }
 androidx-xr-scenecore              = { group = "androidx.xr.scenecore", name = "scenecore",                           version.ref = "xrScenecore" }
 androidx-xr-compose                = { group = "androidx.xr.compose",  name = "compose",                             version.ref = "xrCompose" }

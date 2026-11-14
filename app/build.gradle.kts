@@ -2,7 +2,7 @@
  * :app module build script — infinite-specs-xr-core
  *
  * Android XR host application module.
- * Targets Android XR Developer Preview 4 (minSdk 33, compileSdk 36).
+ * Targets the Jetpack XR SDK 1.0 (minSdk 33, compileSdk 36).
  */
 
 import java.util.Properties
@@ -87,7 +87,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
-    // ── Jetpack XR SDK (Developer Preview 4) ─────────────────────────────────
+    // ── Jetpack XR SDK 1.0 (Compose for XR still beta) ─────────────────────────────────
     implementation(libs.androidx.xr.compose)
     implementation(libs.androidx.xr.scenecore)
     implementation(libs.androidx.xr.runtime)

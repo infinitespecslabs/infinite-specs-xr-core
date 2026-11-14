@@ -12,7 +12,7 @@ Android XR architectural research sandbox exploring "Strange Loops": gaze/voice 
 
 ## Tech stack — do not downgrade
 
-Bleeding-edge/preview versions are intentional: Kotlin 2.2.10, AGP 9.2.1, Java 17, Jetpack XR SDKs all alpha (`androidx.xr.compose`, `androidx.xr.scenecore`, `androidx.xr.runtime`), Ktor 2.3.12. Targets Android XR Developer Preview 4.
+Bleeding-edge/preview versions are intentional: Kotlin 2.2.10, AGP 9.2.1, Java 17, Ktor 2.3.12. Jetpack XR is on the 1.0.0 stable line (`androidx.xr.runtime`, `androidx.xr.scenecore`, `androidx.xr.arcore`) with `androidx.xr.compose` on 1.0.0-beta02 (no stable yet). Keep the explicit `scenecore` 1.0.0 dependency: compose beta02 transitively pulls scenecore rc01, which has a known memory leak.
 
 `gradle.properties` sets `android.builtInKotlin=false` deliberately, to avoid AGP 9.x's built-in Kotlin support conflicting with the manually-applied Kotlin Gradle Plugin. Don't "fix" this.
 
@@ -29,7 +29,7 @@ Bleeding-edge/preview versions are intentional: Kotlin 2.2.10, AGP 9.2.1, Java 1
 ## XR/Compose conventions
 
 - Wrap all spatial content in `Subspace`.
-- Use `SpatialPanel` with `SubspaceModifier.transformingMovable()` for main HUD panels.
+- Use `SpatialPanel` with `SubspaceModifier.movable()` for main HUD panels (`transformingMovable()` was removed in Compose for XR 1.0.0-beta02; pass a `MovePolicy` to customise).
 - Use `Orbiter` / `OrbiterAnchorPoint` for secondary controls anchored to panels.
 - HUD text must use `FontFamily.Monospace` and the `HudColors` palette object (`SpatialPanelComposable.kt`).
 - App launches in `XR_ACTIVITY_START_MODE_FULL_SPACE_MANAGED` — keep spatial UI compatible with this mode.

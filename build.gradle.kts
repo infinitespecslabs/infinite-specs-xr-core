@@ -4,7 +4,7 @@
  * Applies the Android + Kotlin Gradle plugins to all sub-projects via the
  * version catalog defined in gradle/libs.versions.toml.
  *
- * Compatible with Android XR Developer Preview 4 build toolchain.
+ * Compatible with the Jetpack XR SDK 1.0 build toolchain.
  */
 
 // Top-level build file: configuration here applies to all sub-projects/modules.

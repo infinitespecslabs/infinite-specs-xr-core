@@ -5,7 +5,7 @@
     Declares the Android XR host activity and the permissions required for
     eye-tracking (gaze) and microphone (voice transcript) inputs.
 
-    Targets Android XR Developer Preview 4.
+    Targets the Jetpack XR SDK 1.0.
     See: https://developer.android.com/xr
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
