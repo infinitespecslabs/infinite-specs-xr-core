@@ -59,6 +59,7 @@ interface CapturedCall {
     resume?: string;
     cwd?: string;
     model?: string;
+    allowedTools?: string[];
     permissionMode?: string;
     maxTurns?: number;
     hooks?: { Notification?: { hooks: ((input: unknown) => Promise<unknown>)[] }[] };
@@ -103,10 +104,25 @@ describe("ClaudeSession", () => {
       await session.run("do a thing");
 
       const { options } = latestCall();
-      expect(options.model).toBe("claude-opus-4-6");
+      expect(options).not.toHaveProperty("model");
       expect(options.permissionMode).toBe("acceptEdits");
       expect(options.maxTurns).toBe(50);
       expect(options.resume).toBeUndefined();
+    });
+
+    it("requests a specific model only when one is configured", async () => {
+      const session = new ClaudeSession(emit, { model: "claude-sonnet-5-5" });
+      await session.run("do a thing");
+
+      expect(latestCall().options.model).toBe("claude-sonnet-5-5");
+    });
+
+    it("auto-approves the task-tracking tools so the CLI offers them", async () => {
+      const session = new ClaudeSession(emit);
+      await session.run("do a thing");
+
+      expect(latestCall().options.allowedTools).toEqual(expect.arrayContaining(["TaskCreate", "TaskUpdate", "TaskList", "TaskGet"]));
+      expect(latestCall().options.allowedTools).not.toContain("Bash");
     });
 
     it("resumes with the locked session id on a later run", async () => {
@@ -416,6 +432,116 @@ describe("ClaudeSession", () => {
     });
   });
 
+  describe("task progress from Task* tools", () => {
+    // Pushes a tool_use/tool_result pair the way the SDK delivers them.
+    function pushToolCall(queue: FakeQuery<unknown>, id: string, name: string, input: Record<string, unknown>, text: string, toolUseResult?: unknown): void {
+      queue.push({ type: "assistant", message: { content: [{ type: "tool_use", id, name, input }] } });
+      queue.push({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: id, content: text }] }, tool_use_result: toolUseResult });
+    }
+
+    function progressEvents(): unknown[] {
+      return emit.mock.calls.map(([, msg]) => msg).filter((msg) => msg.type === "task_progress");
+    }
+
+    async function startedQueue(): Promise<FakeQuery<unknown>> {
+      const session = new ClaudeSession(emit);
+      await session.run("hi");
+      const queue = latestCall().queue;
+      queue.push({ type: "system", session_id: "s1" });
+      return queue;
+    }
+
+    it("tracks tasks through create, in_progress and completed", async () => {
+      const queue = await startedQueue();
+      pushToolCall(queue, "c1", "TaskCreate", { subject: "Write a.txt", description: "d" }, "Task #1 created successfully: Write a.txt", {
+        task: { id: "1", subject: "Write a.txt" },
+      });
+      pushToolCall(queue, "c2", "TaskCreate", { subject: "Run tests", description: "d" }, "Task #2 created successfully: Run tests", {
+        task: { id: "2", subject: "Run tests" },
+      });
+      pushToolCall(queue, "u1", "TaskUpdate", { taskId: "1", status: "in_progress" }, "Updated task #1 status", {
+        success: true,
+        taskId: "1",
+        updatedFields: ["status"],
+      });
+      pushToolCall(queue, "u2", "TaskUpdate", { taskId: "1", status: "completed" }, "Updated task #1 status", { success: true, taskId: "1" });
+      pushToolCall(queue, "u3", "TaskUpdate", { taskId: "2", status: "completed" }, "Updated task #2 status", { success: true, taskId: "2" });
+
+      await vi.waitFor(() => expect(progressEvents()).toHaveLength(5));
+      expect(progressEvents()).toEqual([
+        { type: "task_progress", completed: 0, total: 1, current: "" },
+        { type: "task_progress", completed: 0, total: 2, current: "" },
+        { type: "task_progress", completed: 0, total: 2, current: "Write a.txt" },
+        { type: "task_progress", completed: 1, total: 2, current: "" },
+        { type: "task_progress", completed: 2, total: 2, current: "All done" },
+      ]);
+    });
+
+    it("falls back to the result text for the task id when there is no structured result", async () => {
+      const queue = await startedQueue();
+      pushToolCall(queue, "c1", "TaskCreate", { subject: "Only task", description: "d" }, "Task #7 created successfully: Only task");
+      pushToolCall(queue, "u1", "TaskUpdate", { taskId: "7", status: "in_progress" }, "Updated task #7 status");
+
+      await vi.waitFor(() => expect(progressEvents()).toHaveLength(2));
+      expect(progressEvents()[1]).toEqual({ type: "task_progress", completed: 0, total: 1, current: "Only task" });
+    });
+
+    it("ignores a failed update and drops a deleted task", async () => {
+      const queue = await startedQueue();
+      pushToolCall(queue, "c1", "TaskCreate", { subject: "A", description: "d" }, "", { task: { id: "1", subject: "A" } });
+      pushToolCall(queue, "c2", "TaskCreate", { subject: "B", description: "d" }, "", { task: { id: "2", subject: "B" } });
+      pushToolCall(queue, "u1", "TaskUpdate", { taskId: "9", status: "completed" }, "Task not found", { success: false, taskId: "9", error: "not found" });
+      pushToolCall(queue, "u2", "TaskUpdate", { taskId: "2", status: "deleted" }, "Updated task #2 status", { success: true, taskId: "2" });
+
+      await vi.waitFor(() => expect(progressEvents()).toHaveLength(3));
+      expect(progressEvents()[2]).toEqual({ type: "task_progress", completed: 0, total: 1, current: "" });
+    });
+
+    it("picks up tasks it never saw created, from an update or a TaskList result", async () => {
+      const queue = await startedQueue();
+      pushToolCall(queue, "u1", "TaskUpdate", { taskId: "4", status: "in_progress" }, "Updated task #4 status", { success: true, taskId: "4" });
+      pushToolCall(queue, "l1", "TaskList", {}, "listing", {
+        tasks: [
+          { id: "3", subject: "Earlier work", status: "completed", blockedBy: [] },
+          { id: "4", subject: "Current work", status: "in_progress", blockedBy: [] },
+        ],
+      });
+
+      await vi.waitFor(() => expect(progressEvents()).toHaveLength(2));
+      expect(progressEvents()).toEqual([
+        { type: "task_progress", completed: 0, total: 1, current: "Task #4" },
+        { type: "task_progress", completed: 1, total: 2, current: "Current work" },
+      ]);
+    });
+
+    it("emits nothing for task calls that carry no usable information", async () => {
+      const queue = await startedQueue();
+      pushToolCall(queue, "c1", "TaskCreate", { subject: "No id", description: "d" }, "something unexpected");
+      pushToolCall(queue, "u1", "TaskUpdate", { taskId: "5", subject: "Renamed" }, "Updated task #5", { success: true, taskId: "5" });
+      pushToolCall(queue, "u2", "TaskUpdate", { taskId: "5", status: "deleted" }, "Updated task #5", { success: true, taskId: "5" });
+      pushToolCall(queue, "l1", "TaskList", {}, "listing", "not an object");
+      pushToolCall(queue, "g1", "TaskGet", { taskId: "5" }, "task", { task: null });
+      queue.push({ type: "result", subtype: "success", session_id: "s1" });
+
+      await vi.waitFor(() => expect(emit).toHaveBeenCalledWith("s1", expect.objectContaining({ type: "result" })));
+      expect(progressEvents()).toEqual([]);
+    });
+  });
+
+  describe("system init", () => {
+    it("reports the model the CLI says it is using", async () => {
+      const onModel = vi.fn();
+      const session = new ClaudeSession(emit, { onModel });
+      await session.run("hi");
+      const queue = latestCall().queue;
+      queue.push({ type: "system", subtype: "init", session_id: "s1", model: "claude-fable-5-2" });
+      queue.push({ type: "system", subtype: "init", session_id: "s1" });
+
+      await vi.waitFor(() => expect(onModel).toHaveBeenCalledWith("claude-fable-5-2"));
+      expect(onModel).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe("system api_retry notifications", () => {
     it("emits a notification for an api_retry system event", async () => {
       const session = new ClaudeSession(emit);
@@ -638,6 +764,16 @@ describe("ClaudeSession", () => {
 
       expect(result).toEqual({ behavior: "allow", updatedInput: { todos } });
       expect(emit).toHaveBeenCalledWith(undefined, { type: "task_progress", completed: 1, total: 2, current: "Step 2" });
+    });
+
+    it("emits no task_progress for an empty TodoWrite list", async () => {
+      const session = new ClaudeSession(emit);
+      await session.run("hi");
+      const { canUseTool } = latestCall().options;
+
+      await canUseTool!("TodoWrite", { todos: [] }, { signal: noopSignal(), toolUseID: "t1" });
+
+      expect(emit).not.toHaveBeenCalledWith(undefined, expect.objectContaining({ type: "task_progress" }));
     });
   });
 

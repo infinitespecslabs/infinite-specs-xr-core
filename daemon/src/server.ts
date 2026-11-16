@@ -25,7 +25,7 @@ export function buildApp(config: AppConfig): Express {
   app.use(express.json({ limit: "10mb" }));
 
   const auth = createAuthMiddleware(config.token);
-  const provider = createClaudeProvider(emit);
+  const provider = createClaudeProvider(emit, { model: config.model });
   app.use("/api", auth, eventsRouter);
   app.use("/api", auth, createCoreRouter(provider));
 

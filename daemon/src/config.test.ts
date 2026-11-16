@@ -12,6 +12,7 @@ describe("parseArgs", () => {
   it("applies documented defaults when no flags are given", () => {
     delete process.env.BRIDGE_TOKEN;
     delete process.env.EVEN_TERMINAL_NAME;
+    delete process.env.XR_DAEMON_MODEL;
     const config = parseArgs(BASE_ARGV);
 
     expect(config.port).toBe(3456);
@@ -19,6 +20,7 @@ describe("parseArgs", () => {
     expect(config.verbose).toBe(false);
     expect(config.name).toBeUndefined();
     expect(config.logFile).toBeUndefined();
+    expect(config.model).toBeUndefined();
     expect(config.token).toMatch(/^[0-9a-f]{32}$/);
   });
 
@@ -62,6 +64,21 @@ describe("parseArgs", () => {
 
   it("parses --verbose", () => {
     expect(parseArgs([...BASE_ARGV, "--verbose"]).verbose).toBe(true);
+  });
+
+  it("parses --model and its alias -m, falling back to XR_DAEMON_MODEL", () => {
+    delete process.env.XR_DAEMON_MODEL;
+    expect(parseArgs([...BASE_ARGV, "--model", "claude-sonnet-5-5"]).model).toBe("claude-sonnet-5-5");
+    expect(parseArgs([...BASE_ARGV, "-m", "claude-sonnet-5-5"]).model).toBe("claude-sonnet-5-5");
+
+    process.env.XR_DAEMON_MODEL = "claude-haiku-5-5";
+    expect(parseArgs(BASE_ARGV).model).toBe("claude-haiku-5-5");
+    expect(parseArgs([...BASE_ARGV, "--model", "claude-sonnet-5-5"]).model).toBe("claude-sonnet-5-5");
+  });
+
+  it("treats an empty XR_DAEMON_MODEL as unset", () => {
+    process.env.XR_DAEMON_MODEL = "";
+    expect(parseArgs(BASE_ARGV).model).toBeUndefined();
   });
 
   it("parses --log-file", () => {

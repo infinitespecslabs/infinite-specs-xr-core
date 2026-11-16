@@ -301,7 +301,23 @@ describe("createClaudeProvider", () => {
 
       expect(info.version).toBe("1.2.3");
       expect(info.account).toEqual({ email: "a@b.com", organization: "Acme", subscriptionType: "pro" });
-      expect(info.model).toBe("Claude Opus 4.6");
+      expect(info.model).toBe("Claude Code default");
+    });
+
+    it("reports the configured model before any session has started", async () => {
+      const provider = createClaudeProvider(emit, { model: "claude-sonnet-5-5" });
+      expect((await provider.getInfo()).model).toBe("claude-sonnet-5-5");
+    });
+
+    it("passes the configured model to the session and reports the model the CLI says it is using", async () => {
+      const provider = createClaudeProvider(emit, { model: "sonnet" });
+      const pending = provider.prompt(undefined, "hi", undefined);
+      const queue = await latestQuery();
+      queue.push({ type: "system", subtype: "init", session_id: "s1", model: "claude-sonnet-5-5" });
+      await pending;
+
+      expect((queryOptionsCalls[queryOptionsCalls.length - 1] as { model?: string }).model).toBe("sonnet");
+      await vi.waitFor(async () => expect((await provider.getInfo()).model).toBe("claude-sonnet-5-5"));
     });
 
     it("falls back to Unknown version when the CLI call fails", async () => {

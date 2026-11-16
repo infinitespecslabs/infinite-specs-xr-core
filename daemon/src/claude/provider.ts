@@ -18,13 +18,26 @@ export interface ClaudeProvider {
   getHistory(sessionId: string, limit: number): Promise<{ role: string; text: string }[]>;
 }
 
-export function createClaudeProvider(emit: (sessionId: string | undefined, msg: SseEvent) => void): ClaudeProvider {
+export interface ClaudeProviderOptions {
+  /** Model to request for every session; undefined = Claude Code's own default. */
+  model?: string;
+}
+
+export function createClaudeProvider(emit: (sessionId: string | undefined, msg: SseEvent) => void, options: ClaudeProviderOptions = {}): ClaudeProvider {
   const sessions = new Map<string, ClaudeSession>();
+  // The model the CLI most recently reported using. Unknown until a session
+  // has started, since with no configured model the choice is the CLI's.
+  let reportedModel: string | undefined;
 
   // Only ever called from prompt() after confirming sessionId isn't already
   // in `sessions`, so it always creates fresh — no need to re-check here.
   function makeSession(sessionId: string | undefined): ClaudeSession {
-    const session = new ClaudeSession(emit);
+    const session = new ClaudeSession(emit, {
+      model: options.model,
+      onModel: (model) => {
+        reportedModel = model;
+      },
+    });
     session.onIdReady((sid) => {
       if (!sessions.has(sid)) sessions.set(sid, session);
     });
@@ -112,7 +125,7 @@ export function createClaudeProvider(emit: (sessionId: string | undefined, msg: 
       // Non-fatal — account stays empty.
     }
 
-    return { account, model: "Claude Opus 4.6", version: version || "Unknown", provider: "claude" };
+    return { account, model: reportedModel ?? options.model ?? "Claude Code default", version: version || "Unknown", provider: "claude" };
   }
 
   async function getHistory(sessionId: string, limit: number): Promise<{ role: string; text: string }[]> {

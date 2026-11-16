@@ -59,6 +59,14 @@ export function summarizeToolCall(toolName: string, input: Record<string, unknow
       return `Agent ${truncate(input.description ?? "", 40)}`;
     case "TodoWrite":
       return "TodoWrite update tasks";
+    case "TaskCreate":
+      return `Task ${truncate(input.subject ?? "", 40)}`.trim();
+    case "TaskUpdate":
+      return `Task #${input.taskId ?? "?"} ${truncate(input.status ?? "update", 20)}`;
+    case "TaskGet":
+      return `Task #${input.taskId ?? "?"}`;
+    case "TaskList":
+      return "Task list";
     case "WebSearch":
       return `Search "${truncate(input.query ?? "", 30)}"`;
     case "WebFetch":

@@ -74,7 +74,7 @@ The server streams Server-Sent Events. Each event has a JSON string payload. On 
 | `question_answer` | `{"answers": {...}}` | Echo of the resolved answer(s), sent right after the response is processed. |
 | `user_prompt` | `{"text": "..."}` | Echoes a submitted prompt once the session ID is known — lets a late-connecting client see what was just sent. |
 | `running_stats` | `{"durationMs": ..., "inputTokens": ..., "outputTokens": ...}` | Emitted every 10s while the agent is busy — running token/duration counters. |
-| `task_progress` | `{"completed": N, "total": N, "current": "..."}` | Derived from the agent's `TodoWrite` tool calls. |
+| `task_progress` | `{"completed": N, "total": N, "current": "..."}` | Derived from the agent's task-tracking tool calls: `TaskCreate`/`TaskUpdate`/`TaskList` on current SDKs, `TodoWrite` on older ones (see §6.3). |
 | `notification` | `{"title": "...", "message": "..."}` | Ad-hoc notices, e.g. API retry ("Retrying (2/5), HTTP 529..."). |
 | `result` | `{"success": true, "text": "...", "sessionId": "...", "costUsd": 0.12, "provider": "claude", "turns": 5, "durationMs": ..., "inputTokens": ..., "outputTokens": ...}` | Session turn summary. `idle` status follows separately once the query process fully ends. |
 | `error` | `{"message": "..."}` | Non-abort query errors. |
@@ -204,3 +204,15 @@ See §2.1/§2.2 inline "Client gap" notes above for the full breakdown. Summary:
 - **Missing REST calls**: `/api/status`, `/api/messages` (reconnect gap-fill), `/api/sessions/:id/history`, `/api/info`, `/api/update-check`.
 - **Missing feature**: multi-provider (`claude`/`codex`) selection — client hardcodes `provider=claude`.
 - **Design implication for Phase 1**: our own daemon can depend on `@anthropic-ai/claude-agent-sdk` directly (same as even-terminal does) rather than reimplementing agent process management from scratch — the main build effort is the HTTP/SSE routing layer and event-schema translation, which this document now specifies precisely enough to reproduce.
+
+### 6.3 Where our daemon now differs (`@anthropic-ai/claude-agent-sdk` 0.3.325)
+§6.1 describes even-terminal 0.8.1, which our daemon originally copied option-for-option on SDK 0.2.141. The daemon is now on **0.3.325** (pinned exactly; [issue #21](https://github.com/infinitespecslabs/infinite-specs-xr-core/issues/21)), and these points no longer match §6.1. All were confirmed against live sessions, not just the type definitions.
+
+- **Model is not hardcoded.** No `model` is passed unless `--model` / `XR_DAEMON_MODEL` is set, so sessions use whatever the host's Claude Code defaults to. `GET /api/info` reports the model the CLI last said it was using (from the SDK's `system`/`init` message), falling back to the configured value, then `"Claude Code default"` before any session has run.
+- **`task_progress` comes from the `Task*` tools, read from the message stream.** SDK sessions stopped using `TodoWrite` in 0.2.142, and current models are not offered any task-tracking tool by default. The daemon adds `TaskCreate`, `TaskUpdate`, `TaskList` and `TaskGet` to `allowedTools`, which is what makes the CLI offer them. Because they are auto-approved they never reach `canUseTool`, so the daemon keeps a per-session task map built from each completed call: the `tool_use` input plus the structured `tool_use_result` on the paired `user` message (`{task: {id, subject}}` for create, `{success, taskId}` for update, `{tasks: [...]}` for list). The `TodoWrite` interception in `canUseTool` is kept for older CLIs. The task map is in-memory, so after a daemon restart a resumed session reports progress only for tasks touched since (a `TaskList` call resyncs it).
+- **`allowedTools` shadows `canUseTool`, by design.** The SDK now prints a `CLAUDE_SDK_CAN_USE_TOOL_SHADOWED` warning at the start of each query listing the bare `allowedTools` names. That is the intended split: those tools are auto-approved, everything else falls through to `canUseTool`. `Bash` and `AskUserQuestion` still reach the callback.
+- **`acceptEdits` now covers some shell writes.** A Bash command that only writes inside the working directory (observed: `printf 'a' > a.txt && cat a.txt`) is approved by the CLI itself and never reaches `canUseTool`, so it produces no `permission_request`. Commands outside that (observed: `curl -sI https://example.com | head -1`) still prompt.
+- **Subagents.** `Agent` remains auto-approved. SDK defaults changed underneath it (nesting depth cap 5 → 1 in 0.3.217, fork subagents on by default in 0.3.302); the daemon keeps the defaults.
+- **Peer dependencies.** `@anthropic-ai/sdk`, `@modelcontextprotocol/sdk` and `zod` are peer dependencies of the SDK since 0.3.143 and are resolved through the lockfile.
+
+Before bumping the pin again: re-run a live session that exercises task tracking, a Bash permission prompt and `AskUserQuestion`. None of the behaviour changes above showed up in type-checking or the unit tests.

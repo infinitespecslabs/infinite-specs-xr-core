@@ -9,6 +9,8 @@ export interface AppConfig {
   cwd: string;
   verbose: boolean;
   logFile?: string;
+  /** Model for Claude Code sessions; undefined = the host CLI's own default. */
+  model?: string;
 }
 
 export function parseArgs(argv: string[]): AppConfig {
@@ -22,6 +24,11 @@ export function parseArgs(argv: string[]): AppConfig {
     })
     .option("name", { alias: "n", type: "string", describe: "Client display name" })
     .option("cwd", { alias: "d", type: "string", describe: "Project directory (where Claude Code sessions live)" })
+    .option("model", {
+      alias: "m",
+      type: "string",
+      describe: "Model for Claude Code sessions (default: XR_DAEMON_MODEL env var, else Claude Code's own default)",
+    })
     .option("verbose", { type: "boolean", default: false, describe: "Print raw SDK messages for debugging" })
     .option("log-file", { type: "string", describe: "Tee all logs to a file" })
     .help()
@@ -35,5 +42,6 @@ export function parseArgs(argv: string[]): AppConfig {
     cwd: parsed.cwd ?? process.cwd(),
     verbose: parsed.verbose,
     logFile: parsed["log-file"],
+    model: parsed.model || process.env.XR_DAEMON_MODEL || undefined,
   };
 }
