@@ -667,9 +667,15 @@ private fun InteractiveInputCard(
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
                         items(lines) { line ->
                             val color = when {
-                                line.startsWith("+") -> Color(0xFF4CAF50) // Green addition
-                                line.startsWith("-") -> Color(0xFFF44336) // Red deletion
-                                line.startsWith("@@") -> Color(0xFF00BCD4) // Cyan chunk header
+                                line.startsWith("+") -> Color(0xFF4CAF50)
+
+                                // Green addition
+                                line.startsWith("-") -> Color(0xFFF44336)
+
+                                // Red deletion
+                                line.startsWith("@@") -> Color(0xFF00BCD4)
+
+                                // Cyan chunk header
                                 else -> HudColors.TextSecondary
                             }
                             Text(

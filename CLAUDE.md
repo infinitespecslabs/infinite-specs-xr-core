@@ -12,9 +12,9 @@ Android XR architectural research sandbox exploring "Strange Loops": gaze/voice 
 
 ## Tech stack — do not downgrade
 
-Bleeding-edge/preview versions are intentional: Kotlin 2.2.10, AGP 9.5.1 (Gradle 9.9.1), Java 17, Ktor 2.3.12. Jetpack XR is on the 1.0.0 stable line (`androidx.xr.runtime`, `androidx.xr.scenecore`, `androidx.xr.arcore`) with `androidx.xr.compose` on 1.0.0-beta02 (no stable yet). Keep the explicit `scenecore` 1.0.0 dependency: compose beta02 transitively pulls scenecore rc01, which has a known memory leak.
+Bleeding-edge/preview versions are intentional: Kotlin 2.4.21, AGP 9.5.1 (Gradle 9.9.1), Java 17, Ktor 2.3.12. Jetpack XR is on the 1.0.0 stable line (`androidx.xr.runtime`, `androidx.xr.scenecore`, `androidx.xr.arcore`) with `androidx.xr.compose` on 1.0.0-beta02 (no stable yet). Keep the explicit `scenecore` 1.0.0 dependency: compose beta02 transitively pulls scenecore rc01, which has a known memory leak.
 
-`gradle.properties` sets `android.builtInKotlin=false` deliberately, to avoid AGP 9.x's built-in Kotlin support conflicting with the manually-applied Kotlin Gradle Plugin. Don't "fix" this. `android.newDsl=false` is also required for now: Kotlin Gradle Plugin 2.2.10 fails to apply without it.
+`gradle.properties` sets `android.builtInKotlin=false` deliberately, to avoid AGP 9.x's built-in Kotlin support conflicting with the manually-applied Kotlin Gradle Plugin. Don't "fix" this. `android.newDsl=false` is also required for now: the `org.jetbrains.kotlin.android` plugin (still failing on Kotlin 2.4.21) cannot apply without it.
 
 ## Build, test, lint
 

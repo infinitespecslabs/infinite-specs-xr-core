@@ -210,8 +210,10 @@ class MainActivity : ComponentActivity() {
         ) {
             is TerminalInteractionLogic.AgentInputAction.SubmitPermission ->
                 bridge.submitPermissionResponse(action.decision)
+
             is TerminalInteractionLogic.AgentInputAction.SubmitQuestion ->
                 bridge.submitQuestionResponse(action.answer)
+
             TerminalInteractionLogic.AgentInputAction.None -> Unit
         }
     }
