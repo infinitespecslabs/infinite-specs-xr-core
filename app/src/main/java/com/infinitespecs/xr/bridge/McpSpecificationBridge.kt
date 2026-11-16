@@ -5,6 +5,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.HttpTimeoutConfig
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.timeout
 import io.ktor.client.request.get
@@ -18,7 +19,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.ByteReadChannel
-import io.ktor.utils.io.readUTF8Line
+import io.ktor.utils.io.readLine
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -128,8 +129,8 @@ class McpSpecificationBridge(
                 client.prepareGet(url) {
                     header("Authorization", "Bearer $activeToken")
                     timeout {
-                        requestTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
-                        socketTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
+                        requestTimeoutMillis = HttpTimeoutConfig.INFINITE_TIMEOUT_MS
+                        socketTimeoutMillis = HttpTimeoutConfig.INFINITE_TIMEOUT_MS
                     }
                 }.execute { response ->
                     if (response.status.value == 200) {
@@ -157,7 +158,7 @@ class McpSpecificationBridge(
 
     private suspend fun readSseChannel(channel: ByteReadChannel) {
         while (!channel.isClosedForRead) {
-            val line = channel.readUTF8Line() ?: break
+            val line = channel.readLine() ?: break
             val trimmedLine = line.trim()
             if (trimmedLine.startsWith("data:")) {
                 val dataContent = trimmedLine.substring(5).trim()
