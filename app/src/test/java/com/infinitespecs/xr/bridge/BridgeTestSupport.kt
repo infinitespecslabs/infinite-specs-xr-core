@@ -57,25 +57,22 @@ fun testBridge(
 ) = TestBridge(dispatcher, respond)
 
 @OptIn(ExperimentalCoroutinesApi::class)
-fun noRequestsExpectedBridge(dispatcher: CoroutineDispatcher = UnconfinedTestDispatcher()) =
-    testBridge(dispatcher) { request ->
-        error("Expected no HTTP request, but got ${request.method.value} ${request.url}")
-    }
+fun noRequestsExpectedBridge(dispatcher: CoroutineDispatcher = UnconfinedTestDispatcher()) = testBridge(dispatcher) { request ->
+    error("Expected no HTTP request, but got ${request.method.value} ${request.url}")
+}
 
-fun jsonResponse(body: String, status: HttpStatusCode = HttpStatusCode.OK): MockRequestHandleScope.(HttpRequestData) -> HttpResponseData =
-    {
-        respond(
-            content = ByteReadChannel(body),
-            status = status,
-            headers = headersOf(HttpHeaders.ContentType, "application/json"),
-        )
-    }
+fun jsonResponse(body: String, status: HttpStatusCode = HttpStatusCode.OK): MockRequestHandleScope.(HttpRequestData) -> HttpResponseData = {
+    respond(
+        content = ByteReadChannel(body),
+        status = status,
+        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+    )
+}
 
-fun sseResponse(body: String, status: HttpStatusCode = HttpStatusCode.OK): MockRequestHandleScope.(HttpRequestData) -> HttpResponseData =
-    {
-        respond(
-            content = ByteReadChannel(body),
-            status = status,
-            headers = headersOf(HttpHeaders.ContentType, "text/event-stream"),
-        )
-    }
+fun sseResponse(body: String, status: HttpStatusCode = HttpStatusCode.OK): MockRequestHandleScope.(HttpRequestData) -> HttpResponseData = {
+    respond(
+        content = ByteReadChannel(body),
+        status = status,
+        headers = headersOf(HttpHeaders.ContentType, "text/event-stream"),
+    )
+}
