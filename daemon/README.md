@@ -21,6 +21,7 @@ npm run build && npm start   # compiled production build
 | `--token` | `-t` | `BRIDGE_TOKEN` env, else random | Auth token (also accepted as `Authorization: Bearer <token>` or `?token=`) |
 | `--name` | `-n` | — | Display name shown in the pairing banner/QR |
 | `--cwd` | `-d` | `process.cwd()` | Project directory for new sessions |
+| `--model` | `-m` | `XR_DAEMON_MODEL` env, else Claude Code's own default | Model for Claude Code sessions (e.g. `claude-sonnet-5-5`) |
 | `--verbose` | | `false` | Log raw SDK messages |
 | `--log-file` | | — | Tee logs to a file |
 

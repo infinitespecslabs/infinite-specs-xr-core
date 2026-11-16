@@ -8,6 +8,29 @@ const RUNNING_STATS_INTERVAL_MS = 10000;
 const QUESTION_TIMEOUT_MS = 120000;
 const PERMISSION_TIMEOUT_MS = 60000;
 
+// Auto-approved tools. Bare names here never reach canUseTool (the SDK warns
+// CLAUDE_SDK_CAN_USE_TOOL_SHADOWED about that at startup; it is intended).
+// The Task* tracking tools are listed because current models no longer get
+// them by default — naming them here is what makes the CLI offer them, and
+// they are what task_progress is derived from (docs/SYSTEM_DESIGN.md §6.1).
+const ALLOWED_TOOLS = [
+  "Read",
+  "Edit",
+  "Glob",
+  "Grep",
+  "Agent",
+  "WebSearch",
+  "WebFetch",
+  "TaskOutput",
+  "ExitPlanMode",
+  "ListMcpResources",
+  "ReadMcpResource",
+  "TaskCreate",
+  "TaskUpdate",
+  "TaskList",
+  "TaskGet",
+];
+
 // Minimal local shapes for the bits of the SDK's streaming/message content we
 // actually read — the full Anthropic Beta message types are much larger than
 // what this daemon needs to translate into our SSE event schema.
@@ -48,6 +71,19 @@ interface PendingToolCall {
   input: Record<string, unknown>;
 }
 
+interface TrackedTask {
+  subject: string;
+  activeForm?: string;
+  status: string;
+}
+
+export interface ClaudeSessionOptions {
+  /** Model to request. Omitted = whatever the host's Claude Code defaults to. */
+  model?: string;
+  /** Called with the model the CLI reports it is actually using. */
+  onModel?: (model: string) => void;
+}
+
 type PermissionWaiter = (value: { allow: boolean; allowAlways: boolean }) => void;
 type QuestionWaiter = (value: string) => void;
 
@@ -86,8 +122,12 @@ export class ClaudeSession {
   private idPromise: Promise<string> | null = null;
   private idReadyCallbacks: ((id: string) => void)[] = [];
   private promptQueue: string[] = [];
+  private tasks = new Map<string, TrackedTask>();
 
-  constructor(private readonly emit: (sessionId: string | undefined, msg: SseEvent) => void) {}
+  constructor(
+    private readonly emit: (sessionId: string | undefined, msg: SseEvent) => void,
+    private readonly sessionOptions: ClaudeSessionOptions = {},
+  ) {}
 
   get id(): string | undefined {
     return this.sessionId;
@@ -216,8 +256,8 @@ export class ClaudeSession {
     const options: Options = {
       resume: this.sessionId,
       cwd: this.lockedCwd,
-      model: "claude-opus-4-6",
-      allowedTools: ["Read", "Edit", "Glob", "Grep", "Agent", "WebSearch", "WebFetch", "TaskOutput", "ExitPlanMode", "ListMcpResources", "ReadMcpResource"],
+      ...(this.sessionOptions.model ? { model: this.sessionOptions.model } : {}),
+      allowedTools: ALLOWED_TOOLS,
       permissionMode: "acceptEdits",
       canUseTool: (toolName, input, opts) => this.handleCanUseTool(toolName, input, opts),
       hooks: {
@@ -330,17 +370,75 @@ export class ClaudeSession {
       return this.handlePermissionConfirm(toolName, input, options.toolUseID, options.signal, options.suggestions);
     }
     if (toolName === "TodoWrite") {
+      // Legacy path: older CLIs/models track work with a single TodoWrite call
+      // carrying the whole list. Current ones use the Task* tools instead,
+      // handled in trackTaskTool() from the message stream.
       const todos = (input.todos as { status: string; content?: string; activeForm?: string }[] | undefined) ?? [];
-      const total = todos.length;
-      const completed = todos.filter((t) => t.status === "completed").length;
-      const active = todos.find((t) => t.status === "in_progress");
-      const current = active ? active.content || active.activeForm || "" : completed === total && total > 0 ? "All done" : "";
-      if (total > 0) {
-        this.send({ type: "task_progress", completed, total, current });
-      }
+      this.emitTaskProgress(todos.map((t) => ({ subject: t.content ?? "", activeForm: t.activeForm, status: t.status })));
       return { behavior: "allow", updatedInput: input };
     }
     return { behavior: "allow", updatedInput: input };
+  }
+
+  // ── Task progress ─────────────────────────────────────
+
+  private emitTaskProgress(tasks: TrackedTask[]): void {
+    const total = tasks.length;
+    if (total === 0) return;
+    const completed = tasks.filter((t) => t.status === "completed").length;
+    const active = tasks.find((t) => t.status === "in_progress");
+    const current = active ? active.subject || active.activeForm || "" : completed === total ? "All done" : "";
+    this.send({ type: "task_progress", completed, total, current });
+  }
+
+  /** Mirrors the CLI's task list from completed Task* tool calls. These tools
+   * are auto-approved, so canUseTool never sees them; the tool_use input plus
+   * the structured `tool_use_result` on the paired user message is the only
+   * place the task ID and status transitions show up. */
+  private trackTaskTool(call: PendingToolCall, result: unknown, outputText: string): void {
+    const r = (result && typeof result === "object" ? result : {}) as Record<string, unknown>;
+    switch (call.name) {
+      case "TaskCreate": {
+        const task = r.task as { id?: string; subject?: string } | undefined;
+        const id = task?.id ?? /Task #(\S+) created/.exec(outputText)?.[1];
+        if (!id) return;
+        this.tasks.set(String(id), {
+          subject: task?.subject ?? String(call.input.subject ?? ""),
+          activeForm: call.input.activeForm as string | undefined,
+          status: "pending",
+        });
+        break;
+      }
+      case "TaskUpdate": {
+        if (r.success === false) return;
+        const id = String(r.taskId ?? call.input.taskId ?? "");
+        const status = call.input.status as string | undefined;
+        if (status === "deleted") {
+          if (!this.tasks.delete(id)) return;
+          break;
+        }
+        const existing = this.tasks.get(id);
+        // An update for a task we never saw created (e.g. a resumed session)
+        // is only worth tracking once it tells us something displayable.
+        if (!existing && !status) return;
+        this.tasks.set(id, {
+          subject: (call.input.subject as string | undefined) ?? existing?.subject ?? `Task #${id}`,
+          activeForm: (call.input.activeForm as string | undefined) ?? existing?.activeForm,
+          status: status ?? existing?.status ?? "pending",
+        });
+        break;
+      }
+      case "TaskList": {
+        const listed = r.tasks as { id: string; subject: string; status: string }[] | undefined;
+        if (!Array.isArray(listed)) return;
+        const previous = this.tasks;
+        this.tasks = new Map(listed.map((t) => [String(t.id), { subject: t.subject, activeForm: previous.get(String(t.id))?.activeForm, status: t.status }]));
+        break;
+      }
+      default:
+        return;
+    }
+    this.emitTaskProgress([...this.tasks.values()]);
   }
 
   private async handleAskUserQuestion(
@@ -438,20 +536,23 @@ export class ClaudeSession {
         this.processAssistant(msg as unknown as { message: { content: ContentBlock[] } });
         break;
       case "user":
-        this.processUser(msg as unknown as { message: { content: ContentBlock[] } });
+        this.processUser(msg as unknown as { message: { content: ContentBlock[] }; tool_use_result?: unknown });
         break;
       case "result":
         this.emitResult(msg as unknown as ResultMessageShape);
         break;
       case "system":
-        this.processSystem(msg as unknown as { subtype?: string; attempt?: number; max_retries?: number; retry_delay_ms?: number; error_status?: number });
+        this.processSystem(msg as unknown as SystemMessageShape);
         break;
       default:
         break;
     }
   }
 
-  private processSystem(m: { subtype?: string; attempt?: number; max_retries?: number; retry_delay_ms?: number; error_status?: number }): void {
+  private processSystem(m: SystemMessageShape): void {
+    if (m.subtype === "init" && m.model) {
+      this.sessionOptions.onModel?.(m.model);
+    }
     if (m.subtype === "api_retry") {
       const attempt = m.attempt ?? 0;
       const maxRetries = m.max_retries ?? 0;
@@ -505,7 +606,7 @@ export class ClaudeSession {
     }
   }
 
-  private processUser({ message }: { message: { content: ContentBlock[] } }): void {
+  private processUser({ message, tool_use_result }: { message: { content: ContentBlock[] }; tool_use_result?: unknown }): void {
     const content = message?.content;
     if (!Array.isArray(content)) return;
     for (const block of content) {
@@ -514,6 +615,7 @@ export class ClaudeSession {
       if (!pending) continue;
       this.pendingToolCalls.delete(block.tool_use_id);
       const output = extractTextContent(block.content);
+      this.trackTaskTool(pending, tool_use_result, output);
       this.send({
         type: "tool_end",
         name: pending.name,
@@ -562,6 +664,15 @@ export class ClaudeSession {
     });
     // idle status is emitted by run()'s finally block once the generator loop ends.
   }
+}
+
+interface SystemMessageShape {
+  subtype?: string;
+  model?: string;
+  attempt?: number;
+  max_retries?: number;
+  retry_delay_ms?: number;
+  error_status?: number;
 }
 
 interface ResultMessageShape {

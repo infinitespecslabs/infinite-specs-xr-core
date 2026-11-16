@@ -122,12 +122,21 @@ describe("summarizeToolCall", () => {
     expect(summarizeToolCall("AskUserQuestion", { questions: [] })).toBe("AskUserQuestion");
   });
 
+  it("summarizes the task-tracking tools", () => {
+    expect(summarizeToolCall("TaskCreate", { subject: "Fix bug" })).toBe("Task Fix bug");
+    expect(summarizeToolCall("TaskCreate", {})).toBe("Task");
+    expect(summarizeToolCall("TaskUpdate", { taskId: "2", status: "completed" })).toBe("Task #2 completed");
+    expect(summarizeToolCall("TaskUpdate", { taskId: "2", subject: "Renamed" })).toBe("Task #2 update");
+    expect(summarizeToolCall("TaskGet", { taskId: "2" })).toBe("Task #2");
+    expect(summarizeToolCall("TaskList", {})).toBe("Task list");
+  });
+
   it("renames Task-prefixed unknown tools to Agent", () => {
-    expect(summarizeToolCall("TaskCreate", { subject: "Fix bug" })).toBe("Agent Fix bug");
+    expect(summarizeToolCall("Task", { description: "Fix bug" })).toBe("Agent Fix bug");
   });
 
   it("renames Task-prefixed unknown tools to Agent with no detail", () => {
-    expect(summarizeToolCall("TaskList", {})).toBe("Agent");
+    expect(summarizeToolCall("TaskStop", {})).toBe("Agent");
   });
 
   it("falls back to the raw tool name with detail for unknown non-Task tools", () => {
