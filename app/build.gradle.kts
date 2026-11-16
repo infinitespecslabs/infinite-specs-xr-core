@@ -64,6 +64,9 @@ android {
     testOptions {
         unitTests {
             isReturnDefaultValues = true
+            // AGP 9.5 registers Compose Preview tasks that refuse to be created
+            // without this, which breaks `./gradlew tasks --all`.
+            isIncludeAndroidResources = true
         }
     }
 }
