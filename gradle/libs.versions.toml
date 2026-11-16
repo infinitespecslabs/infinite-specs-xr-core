@@ -12,21 +12,18 @@ kotlinxSerializationJson  = "1.13.0"
 
 # ── Android build tooling ───────────────────────────────────────────────────
 androidGradlePlugin       = "9.5.1"
-compileSdk                = "36"
+compileSdk                = "37"
 minSdk                    = "33"        # Android XR minimum
 targetSdk                 = "36"
 
 # ── AndroidX core ──────────────────────────────────────────────────────────
-# coreKtx, lifecycle and composeBom are held at the newest releases that compile
-# against API 36. core-ktx 1.19+, lifecycle 2.11+ and Compose 1.12+ (BOM 2026.08+)
-# all require compileSdk 37.
-coreKtx                   = "1.18.0"
-lifecycle                 = "2.10.0"
+coreKtx                   = "1.19.1"
+lifecycle                 = "2.11.0"
 activityCompose           = "1.13.0"
 fragment                  = "1.9.1"       # constraint only, see app/build.gradle.kts
 
 # ── Jetpack Compose ─────────────────────────────────────────────────────────
-composeBom                = "2026.06.01"
+composeBom                = "2026.09.00"
 
 # ── Jetpack XR SDK 1.0 (Compose for XR still beta) ─────────────────────────
 xrRuntime                 = "1.0.0"
@@ -35,7 +32,7 @@ xrCompose                 = "1.0.0-beta02"
 xrArcore                  = "1.0.0"
 
 # ── Ktor (SSE transport) ────────────────────────────────────────────────────
-ktor                      = "3.2.4"
+ktor                      = "3.6.1"
 
 # ── Test ────────────────────────────────────────────────────────────────────
 junit                     = "4.13.2"
