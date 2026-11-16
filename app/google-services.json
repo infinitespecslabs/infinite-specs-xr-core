@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "317171036019",
+    "project_id": "infinite-specs-xr-dev",
+    "storage_bucket": "infinite-specs-xr-dev.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:317171036019:android:37af559f12eadffa139f06",
+        "android_client_info": {
+          "package_name": "com.infinitespecs.xr"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC6Ypo0jHzl9QkYrWiLjodvTuLtHTGR_8o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
