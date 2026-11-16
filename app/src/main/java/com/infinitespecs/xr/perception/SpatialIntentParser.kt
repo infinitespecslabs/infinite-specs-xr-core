@@ -2,9 +2,11 @@ package com.infinitespecs.xr.perception
 
 import android.util.Log
 import androidx.xr.runtime.math.Ray
-import com.google.ai.client.generativeai.GenerativeModel
-import com.google.ai.client.generativeai.type.generationConfig
-import com.infinitespecs.xr.BuildConfig
+import com.google.firebase.Firebase
+import com.google.firebase.ai.GenerativeModel
+import com.google.firebase.ai.ai
+import com.google.firebase.ai.type.GenerativeBackend
+import com.google.firebase.ai.type.generationConfig
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -14,17 +16,20 @@ import kotlinx.serialization.json.jsonPrimitive
  * Evaluates real-time gaze duration data, spatial orientation matrices, and spoken
  * audio transcript tokens into an immutable architectural intent package.
  *
- * Now powered by Google Gemini (Phase 3).
+ * Powered by Gemini through Firebase AI Logic (Gemini Developer API backend).
+ * The Gemini API key lives in the Firebase project, not in the app.
  */
 class SpatialIntentParser(
-    private val generativeModel: GenerativeModel = GenerativeModel(
-        modelName = "gemini-2.5-flash",
-        apiKey = BuildConfig.GOOGLE_AI_API_KEY,
+    private val generativeModel: GenerativeModel = Firebase.ai(backend = GenerativeBackend.googleAI()).generativeModel(
+        modelName = GEMINI_MODEL,
         generationConfig = generationConfig {
             responseMimeType = "application/json"
         },
     ),
 ) {
+    companion object {
+        const val GEMINI_MODEL = "gemini-2.5-flash"
+    }
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -126,8 +131,7 @@ class SpatialIntentParser(
             )
         } catch (e: Exception) {
             Log.e("SpatialIntentParser", "Gemini generation failed", e)
-            Log.d("SpatialIntentParser", "API Key present: ${BuildConfig.GOOGLE_AI_API_KEY.isNotEmpty()}")
-            // Fallback for demo stability if API key is missing or network fails
+            // Fallback for demo stability if the Firebase project is misconfigured or the network fails
             ArchitecturalIntent(
                 nodeType = "ErrorFallback",
                 physicalAnchorId = "floating_context",

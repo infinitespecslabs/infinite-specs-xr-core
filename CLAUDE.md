@@ -12,7 +12,7 @@ Android XR architectural research sandbox exploring "Strange Loops": gaze/voice 
 
 ## Tech stack — do not downgrade
 
-Bleeding-edge/preview versions are intentional: Kotlin 2.4.21, AGP 9.5.1 (Gradle 9.9.1), Java 17, Ktor 3.6.1 (client only). Jetpack XR is on the 1.0.0 stable line (`androidx.xr.runtime`, `androidx.xr.scenecore`, `androidx.xr.arcore`) with `androidx.xr.compose` on 1.0.0-beta02 (no stable yet). Keep the explicit `scenecore` 1.0.0 dependency: compose beta02 transitively pulls scenecore rc01, which has a known memory leak.
+Bleeding-edge/preview versions are intentional: Kotlin 2.4.21, AGP 9.5.1 (Gradle 9.9.1), Java 17, Ktor 3.2.4 (client only). Ktor is deliberately not on the latest 3.x: `firebase-ai` ships with Ktor 3.2.4 and its OkHttp engine at Ktor 3.6 requires `compileSdk` 37, so every Ktor module is aligned to 3.2.4 through the Ktor BOM. Jetpack XR is on the 1.0.0 stable line (`androidx.xr.runtime`, `androidx.xr.scenecore`, `androidx.xr.arcore`) with `androidx.xr.compose` on 1.0.0-beta02 (no stable yet). Keep the explicit `scenecore` 1.0.0 dependency: compose beta02 transitively pulls scenecore rc01, which has a known memory leak.
 
 `gradle.properties` sets `android.builtInKotlin=false` deliberately, to avoid AGP 9.x's built-in Kotlin support conflicting with the manually-applied Kotlin Gradle Plugin. Don't "fix" this. `android.newDsl=false` is also required for now: the `org.jetbrains.kotlin.android` plugin (still failing on Kotlin 2.4.21) cannot apply without it.
 
@@ -38,7 +38,8 @@ Bleeding-edge/preview versions are intentional: Kotlin 2.4.21, AGP 9.5.1 (Gradle
 
 - Check `ROADMAP.md` before starting a new feature.
 - Commit messages: Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, `build:`, scoped variants like `fix(perception):`), descriptive subjects.
-- `local.properties` (gitignored) needs `sdk.dir` and `GOOGLE_AI_API_KEY` (Gemini, injected via `BuildConfig.GOOGLE_AI_API_KEY`) — without it, `SpatialIntentParser` fails at runtime (unit tests mock this out).
+- `local.properties` (gitignored) needs `sdk.dir`.
+- Gemini is reached through Firebase AI Logic (Gemini Developer API backend), configured by `app/google-services.json`. There is no Gemini API key in the app or in `local.properties`; without a valid Firebase config `SpatialIntentParser` falls back to an `ErrorFallback` intent at runtime (unit tests mock the model). The model name is the single constant `SpatialIntentParser.GEMINI_MODEL`.
 - `android:usesCleartextTraffic="true"` is intentional (local SSE/MCP bridge over LAN), not an oversight — hardening tracked in `ROADMAP.md` Phase 2.
 - `simulated-agent-worktree/` is gitignored leftover scratch output from the now-retired `macbook-agent` Node daemon simulator (generated Kotlin files) — not hand-authored source, not a real git worktree despite the name. Safe to ignore/delete if encountered.
 - Avoid reading/grepping the root `.hprof` heap dump or `even-terminal-*.log` files if present — large, gitignored, not source.
