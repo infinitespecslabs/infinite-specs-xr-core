@@ -94,9 +94,6 @@ dependencies {
     implementation(libs.androidx.xr.arcore)
 
     // ── Ktor SSE bridge ──────────────────────────────────────────────────────
-    implementation(libs.ktor.server.core)
-    implementation(libs.ktor.server.cio)
-    implementation(libs.ktor.contentnegotiation)
     implementation(libs.ktor.serialization.json)
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.cio)
