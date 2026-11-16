@@ -23,6 +23,7 @@ targetSdk                 = "36"
 coreKtx                   = "1.18.0"
 lifecycle                 = "2.10.0"
 activityCompose           = "1.13.0"
+fragment                  = "1.9.1"       # constraint only, see app/build.gradle.kts
 
 # ── Jetpack Compose ─────────────────────────────────────────────────────────
 composeBom                = "2026.06.01"
@@ -34,7 +35,7 @@ xrCompose                 = "1.0.0-beta02"
 xrArcore                  = "1.0.0"
 
 # ── Ktor (SSE transport) ────────────────────────────────────────────────────
-ktor                      = "3.6.1"
+ktor                      = "3.2.4"
 
 # ── Test ────────────────────────────────────────────────────────────────────
 junit                     = "4.13.2"
@@ -46,8 +47,9 @@ turbine                   = "1.2.1"       # Flow testing
 spotless                  = "8.11.0"
 ktlint                    = "1.8.0"
 
-# ── AI ──────────────────────────────────────────────────────────────────────
-googleAi                  = "0.9.0"
+# ── AI (Gemini via Firebase AI Logic) ───────────────────────────────────────
+firebaseBom               = "35.2.0"
+googleServices            = "4.6.0"
 
 # ── Code Coverage ───────────────────────────────────────────────────────────
 kover                     = "0.9.11"
@@ -65,6 +67,7 @@ kotlinx-serialization-json        = { group = "org.jetbrains.kotlinx", name = "k
 androidx-core-ktx                 = { group = "androidx.core",         name = "core-ktx",                            version.ref = "coreKtx" }
 androidx-lifecycle-runtime-ktx    = { group = "androidx.lifecycle",    name = "lifecycle-runtime-ktx",               version.ref = "lifecycle" }
 androidx-activity-compose         = { group = "androidx.activity",     name = "activity-compose",                    version.ref = "activityCompose" }
+androidx-fragment                 = { group = "androidx.fragment",     name = "fragment",                            version.ref = "fragment" }
 
 # ── Jetpack Compose BOM + core ───────────────────────────────────────────────
 androidx-compose-bom               = { group = "androidx.compose",     name = "compose-bom",                         version.ref = "composeBom" }
@@ -80,6 +83,7 @@ androidx-xr-compose                = { group = "androidx.xr.compose",  name = "c
 androidx-xr-arcore                 = { group = "androidx.xr.arcore",   name = "arcore",                              version.ref = "xrArcore" }
 
 # ── Ktor ────────────────────────────────────────────────────────────────────
+ktor-bom                          = { group = "io.ktor",               name = "ktor-bom",                            version.ref = "ktor" }
 ktor-serialization-json           = { group = "io.ktor",               name = "ktor-serialization-kotlinx-json",     version.ref = "ktor" }
 ktor-client-core                  = { group = "io.ktor",               name = "ktor-client-core",                    version.ref = "ktor" }
 ktor-client-cio                   = { group = "io.ktor",               name = "ktor-client-cio",                     version.ref = "ktor" }
@@ -87,7 +91,9 @@ ktor-client-contentnegotiation    = { group = "io.ktor",               name = "k
 ktor-client-mock                  = { group = "io.ktor",               name = "ktor-client-mock",                    version.ref = "ktor" }
 
 # ── AI ──────────────────────────────────────────────────────────────────────
-generativeai                      = { group = "com.google.ai.client.generativeai", name = "generativeai",           version.ref = "googleAi" }
+firebase-bom                      = { group = "com.google.firebase",   name = "firebase-bom",                        version.ref = "firebaseBom" }
+firebase-ai                       = { group = "com.google.firebase",   name = "firebase-ai" }
+firebase-appcheck-debug           = { group = "com.google.firebase",   name = "firebase-appcheck-debug" }
 
 # ── Test ────────────────────────────────────────────────────────────────────
 junit                             = { group = "junit",                 name = "junit",                               version.ref = "junit" }
@@ -103,4 +109,5 @@ kotlin-compose        = { id = "org.jetbrains.kotlin.plugin.compose", version.re
 kotlin-serialization  = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 spotless              = { id = "com.diffplug.spotless",            version.ref = "spotless" }
 kover                 = { id = "org.jetbrains.kotlinx.kover",      version.ref = "kover" }
+google-services       = { id = "com.google.gms.google-services",   version.ref = "googleServices" }
 

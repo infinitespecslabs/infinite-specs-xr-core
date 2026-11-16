@@ -2,8 +2,8 @@ package com.infinitespecs.xr
 
 import androidx.xr.runtime.math.Ray
 import androidx.xr.runtime.math.Vector3
-import com.google.ai.client.generativeai.GenerativeModel
-import com.google.ai.client.generativeai.type.GenerateContentResponse
+import com.google.firebase.ai.GenerativeModel
+import com.google.firebase.ai.type.GenerateContentResponse
 import com.infinitespecs.xr.perception.SpatialIntentParser
 import io.mockk.coEvery
 import io.mockk.every
