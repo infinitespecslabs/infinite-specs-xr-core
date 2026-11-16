@@ -2,7 +2,7 @@
  * :app module build script — infinite-specs-xr-core
  *
  * Android XR host application module.
- * Targets the Jetpack XR SDK 1.0 (minSdk 33, compileSdk 36).
+ * Targets the Jetpack XR SDK 1.0 (minSdk 33, compileSdk 37, targetSdk 36).
  */
 
 plugins {
@@ -16,7 +16,7 @@ plugins {
 
 android {
     namespace   = "com.infinitespecs.xr"
-    compileSdk  = 36
+    compileSdk  = 37
 
     defaultConfig {
         applicationId = "com.infinitespecs.xr"
