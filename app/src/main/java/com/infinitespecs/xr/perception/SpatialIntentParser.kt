@@ -28,7 +28,10 @@ class SpatialIntentParser(
     ),
 ) {
     companion object {
-        const val GEMINI_MODEL = "gemini-2.5-flash"
+        // gemini-2.5-flash is closed to new projects. The API points to
+        // gemini-3.8-flash as its successor, but on the free tier that model
+        // was rate-limited and overloaded when this was written (2026-11).
+        const val GEMINI_MODEL = "gemini-3.6-flash"
     }
 
     private val json = Json {

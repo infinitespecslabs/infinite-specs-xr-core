@@ -93,6 +93,7 @@ ktor-client-mock                  = { group = "io.ktor",               name = "k
 # ── AI ──────────────────────────────────────────────────────────────────────
 firebase-bom                      = { group = "com.google.firebase",   name = "firebase-bom",                        version.ref = "firebaseBom" }
 firebase-ai                       = { group = "com.google.firebase",   name = "firebase-ai" }
+firebase-appcheck-debug           = { group = "com.google.firebase",   name = "firebase-appcheck-debug" }
 
 # ── Test ────────────────────────────────────────────────────────────────────
 junit                             = { group = "junit",                 name = "junit",                               version.ref = "junit" }

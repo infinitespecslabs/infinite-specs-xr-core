@@ -96,6 +96,7 @@ dependencies {
     // ── Gemini via Firebase AI Logic ─────────────────────────────────────────
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.ai)
+    debugImplementation(libs.firebase.appcheck.debug)
     constraints {
         // Play services (via Firebase) pulls in Fragment 1.1.0, which fails the
         // release lint check for registerForActivityResult. The app has no fragments.
